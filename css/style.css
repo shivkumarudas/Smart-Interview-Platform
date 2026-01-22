@@ -1,0 +1,117 @@
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            display: flex;
+            background: linear-gradient(120deg, #1e3c72, #2a5298);
+            color: #fff;
+        }
+
+        .container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            width: 900px;
+            display: flex;
+            background: #fff;
+            color: #333;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+
+        .left {
+            width: 50%;
+            padding: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+        }
+
+        .left h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .left p {
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .left ul li {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .temp-cred {
+            background: rgba(255,255,255,0.15);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .right {
+            width: 50%;
+            padding: 50px;
+        }
+
+        .right h2 {
+            margin-bottom: 25px;
+            font-size: 26px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #667eea;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .error {
+            color: red;
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        @media(max-width: 768px) {
+            .card {
+                flex-direction: column;
+                width: 90%;
+            }
+            .left, .right {
+                width: 100%;
+            }
+        }
