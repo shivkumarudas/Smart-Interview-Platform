@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InterviewAI Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <div class="logo">InterviewAI</div>
+
+    <div class="menu">
+        <a href="#" class="active">🏠 Dashboard</a>
+        <a href="profile.html">👤 User Profile</a>
+        <a href="upload-resume.html">📄 Upload Resume</a>
+        <a href="interview-selection.html">🎥 Start Interview</a>
+        <a href="report.html">📊 Reports</a>
+        <a href="feedback.html">💬 Feedback</a>
+        <a href="index.html">🚪 Logout</a>
+    </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+    <!-- HEADER -->
+    <div class="header">
+        <h2>AI-Powered Smart Interview Platform</h2>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+        <div class="welcome">Welcome, User 👋</div>
+
+        <div class="cards">
+
+            <!-- PROFILE STATUS -->
+            <div class="card">
+                <h3>Profile Status</h3>
+                <div class="status">Completed ✅</div>
+            </div>
+
+            <!-- RESUME -->
+            <div class="card">
+                <h3>Resume Analysis</h3>
+                <p>Skills Extracted</p>
+            </div>
+
+            <!-- INTERVIEW -->
+            <div class="card">
+                <h3>Interview</h3>
+                <button class="start-btn" onclick="startInterview()">Start Interview</button>
+            </div>
+
+            <!-- SCORE -->
+            <div class="card">
+                <h3>Latest Score</h3>
+                <div class="score-box">
+                    <div class="circle">
+                        <span>78%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script>
+function startInterview(){
+    window.location.href="interview-selection.html";
+}
+</script>
+
+</body>
+</html>
