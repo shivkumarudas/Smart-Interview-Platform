@@ -1,135 +1,131 @@
-
-        /* code for dashboard page */
-
-        *{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Inter',sans-serif;
-}
-body{
-    background:#f5f7fb;
-    display:flex;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
 }
 
-/* SIDEBAR */
-.sidebar{
-    width:260px;
-    height:100vh;
-    background:linear-gradient(180deg,#0f2a4d,#143c6e);
-    color:#fff;
-    padding:30px 20px;
-}
-.logo{
-    font-size:24px;
-    font-weight:700;
-    margin-bottom:40px;
-}
-.menu a{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    padding:14px 12px;
-    margin-bottom:10px;
-    border-radius:8px;
-    color:#fff;
-    text-decoration:none;
-    font-size:15px;
-}
-.menu a:hover,
-.menu a.active{
-    background:rgba(255,255,255,0.15);
+body {
+  display: flex;
+  background: #f5f7fb;
 }
 
-/* MAIN */
-.main{
-    flex:1;
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  background: linear-gradient(180deg, #0f2a4d, #143c6e);
+  color: white;
+  padding: 30px 20px;
+  position: fixed;
 }
 
-/* HEADER */
-.header{
-    background:#f8faff;
-    padding:22px 40px;
-    border-bottom:1px solid #e3e7f0;
-}
-.header h2{
-    font-size:22px;
-    color:#2c3e50;
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 40px;
 }
 
-/* CONTENT */
-.content{
-    padding:40px;
-}
-.welcome{
-    font-size:26px;
-    font-weight:600;
-    margin-bottom:30px;
-    color:#2c3e50;
+.menu a {
+  display: block;
+  padding: 14px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
 }
 
-/* CARDS */
-.cards{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
-    gap:25px;
-}
-.card{
-    background:#fff;
-    border-radius:16px;
-    padding:30px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.08);
-}
-.card h3{
-    font-size:18px;
-    margin-bottom:18px;
-    color:#2c3e50;
-}
-.status{
-    font-size:18px;
-    font-weight:600;
-    color:#2ecc71;
+.menu a.active,
+.menu a:hover {
+  background: rgba(255,255,255,0.15);
 }
 
-/* INTERVIEW BUTTON */
-.start-btn{
-    background:#1f6ae1;
-    color:#fff;
-    border:none;
-    padding:14px 26px;
-    font-size:16px;
-    border-radius:10px;
-    cursor:pointer;
-}
-.start-btn:hover{
-    background:#1557c0;
+.main {
+  margin-left: 260px;
+  width: 100%;
 }
 
-/* SCORE CIRCLE */
-.score-box{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-}
-.circle{
-    width:160px;
-    height:160px;
-    border-radius:50%;
-    background:conic-gradient(#1f6ae1 0deg 280deg,#e6ecf5 280deg);
-    display:flex;
-    justify-content:center;
-    align-items:center;
-}
-.circle span{
-    background:#fff;
-    width:120px;
-    height:120px;
-    border-radius:50%;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:32px;
-    font-weight:700;
-    color:#2c3e50;
+.header {
+  padding: 22px 40px;
+  background: white;
+  border-bottom: 1px solid #e3e7f0;
 }
 
+.content {
+  padding: 40px;
+}
+
+.welcome {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 30px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 25px;
+}
+
+.card {
+  background: white;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+.card h3 {
+  margin-bottom: 12px;
+}
+
+.status {
+  font-weight: 600;
+}
+
+.start-btn {
+  background: #1f6ae1;
+  color: white;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.start-btn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: #e4e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #1f6ae1;
+  transition: width 0.4s ease;
+}
+
+.skill {
+  display: inline-block;
+  background: #eef3ff;
+  color: #1f6ae1;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  margin: 4px;
+}
+
+.highlight {
+  background: linear-gradient(135deg, #1f6ae1, #5a8dee);
+  color: white;
+}
+
+.highlight ul li {
+  margin-bottom: 8px;
+}

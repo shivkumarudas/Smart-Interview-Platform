@@ -8,100 +8,135 @@ const User = require("./models/User");
 
 const app = express();
 
+// ================== MIDDLEWARE ==================
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); // MUST be before routes
 
 // Disable buffering (good practice)
 mongoose.set("bufferCommands", false);
 
+// ================== DB ==================
 const MONGO_URI =
   "mongodb+srv://testuser:Test12345@cluster0.ibc99sn.mongodb.net/interviewAI?retryWrites=true&w=majority";
 
+// ================== START SERVER ==================
 async function startServer() {
   try {
-    // ✅ WAIT for MongoDB connection
     await mongoose.connect(MONGO_URI);
     console.log("✅ MongoDB Connected (ready)");
 
-    /* ================== TEST ================== */
+    // ================== TEST ==================
     app.get("/ping", (req, res) => {
       res.send("pong");
     });
 
-    /* ================== PROFILE ================== */
-    app.post("/profile", async (req, res) => {
+    // ================== SIGNUP ==================
+    app.post("/signup", async (req, res) => {
       try {
-        const profile = new Profile(req.body);
-        await profile.save();
-        res.status(201).json({ message: "Profile saved successfully" });
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+          return res.status(400).json({ error: "Missing fields" });
+        }
+
+        const exists = await User.findOne({ email });
+        if (exists) {
+          return res.status(400).json({ error: "Email already exists" });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = new User({
+          email,
+          password: hashedPassword
+        });
+
+        await user.save();
+        res.json({ message: "Signup successful" });
+
       } catch (err) {
         res.status(500).json({ error: err.message });
       }
     });
 
-    /* ================== SIGNUP ================== */
-   app.post("/signup", async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
+    // ================== LOGIN ==================
+    app.post("/login", async (req, res) => {
+      try {
+        const { email, password } = req.body;
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return res.status(400).json({ error: "Email already exists" });
-    }
+        if (!email || !password) {
+          return res.status(400).json({ error: "Missing fields" });
+        }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await User.findOne({ email });
+        if (!user) {
+          return res.status(400).json({ error: "Invalid email or password" });
+        }
 
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword
-    });
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+          return res.status(400).json({ error: "Invalid email or password" });
+        }
 
-    await user.save();
-    res.json({ message: "Signup successful" });
+        res.json({
+          message: "Login successful",
+          user: {
+            id: user._id.toString(), // 🔥 ENSURE STRING
+            name: user.name,
+            email: user.email
+          }
+        });
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-    /* ================== LOGIN ================== */
-   app.post("/login", async (req, res) => {
-  try {
-    console.log("REQ BODY (LOGIN):", req.body);
-
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: "Missing fields" });
-    }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid email or password" });
-    }
-
-    res.json({
-      message: "Login successful",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email
+      } catch (err) {
+        res.status(500).json({ error: err.message });
       }
     });
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
+    // ================== CREATE / UPDATE PROFILE ==================
+    app.post("/profile", async (req, res) => {
+      try {
+        const { userId, ...profileData } = req.body;
 
-    /* ================== START SERVER ================== */
+        if (!userId) {
+          return res.status(400).json({ error: "User ID missing" });
+        }
+
+        const existingProfile = await Profile.findOne({ userId });
+
+        if (existingProfile) {
+          await Profile.findOneAndUpdate(
+            { userId },
+            profileData,
+            { new: true }
+          );
+          return res.json({ message: "Profile updated" });
+        }
+
+        const profile = new Profile({
+          userId,
+          ...profileData
+        });
+
+        await profile.save();
+        res.json({ message: "Profile created" });
+
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    // ================== GET PROFILE ==================
+    app.get("/profile/:userId", async (req, res) => {
+      try {
+        const profile = await Profile.findOne({ userId: req.params.userId });
+        if (!profile) return res.json(null);
+        res.json(profile);
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    // ================== LISTEN ==================
     app.listen(5000, () => {
       console.log("🚀 Server running on port 5000");
     });
