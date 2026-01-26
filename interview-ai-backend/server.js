@@ -3,9 +3,9 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 
-const Profile = require("./models/Profile");
+const Profile = require("./models/profile");
 const User = require("./models/User");
-
+const Feedback = require("./models/Feedback");
 const app = express();
 
 // ================== MIDDLEWARE ==================
@@ -17,7 +17,7 @@ mongoose.set("bufferCommands", false);
 
 // ================== DB ==================
 const MONGO_URI =
-  "mongodb+srv://testuser:Test12345@cluster0.ibc99sn.mongodb.net/interviewAI?retryWrites=true&w=majority";
+  "mongodb+srv://testuser:Test12345@cluster0.xxxxx.mongodb.net/interviewAI?retryWrites=true&w=majority";
 
 // ================== START SERVER ==================
 async function startServer() {
@@ -135,6 +135,41 @@ async function startServer() {
         res.status(500).json({ error: err.message });
       }
     });
+
+
+
+    // ================== FEEDBACK ==================
+
+    app.post("/feedback", async (req, res) => {
+  try {
+    console.log("REQ BODY /feedback →", req.body);
+
+    const { userId, positive, improvement, recommend } = req.body;
+
+    if (!userId || !positive || !improvement || !recommend) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const feedback = new Feedback({
+      userId,
+      positive,
+      improvement,
+      recommend
+    });
+
+    await feedback.save();
+
+    res.json({ message: "Thank you for your feedback" });
+
+  } catch (err) {
+    console.error("Feedback error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
 
     // ================== LISTEN ==================
     app.listen(5000, () => {
