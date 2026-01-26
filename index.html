@@ -3,101 +3,255 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>InterviewAI | AI Interview Platform</title>
+<title>InterviewAI | AI-Powered Interview Platform</title>
 
-<link rel="stylesheet" href="css/style.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
 
-<!-- NAVBAR -->
+<!-- ================= NAVBAR ================= -->
 <nav class="navbar">
-    <div class="logo">InterviewAI</div>
-    <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#process">Process</a>
-        <a href="#stats">Results</a>
-        <button class="nav-btn">Login</button>
-    </div>
+  <div class="logo">InterviewAI</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#modes">Modes</a>
+    <a href="#how">Process</a>
+    <a href="#tech">Tech</a>
+    <button class="nav-btn" id="navBtn">Login</button>
+  </div>
 </nav>
 
-<!-- HERO -->
+<!-- ================= HERO ================= -->
 <section class="hero">
-    <div class="hero-content">
-        <span class="badge">🚀 AI-Powered Interviews</span>
-        <h1>Crack Interviews with <br><span>Artificial Intelligence</span></h1>
-        <p>
-            Practice real interviews.  
-            Get instant AI feedback on confidence, communication, and skills.
-        </p>
-        <div class="hero-btns">
-            <button class="primary"><a href="dashboard.html">Start Practicing</a></button>
-            <button class="secondary">Watch Demo</button>
-        </div>
+  <div class="hero-content">
+    <span class="badge">🚀 AI-Powered Interview Practice</span>
+    <h1>
+      Prepare Smarter.<br>
+      <span>Crack Interviews with AI.</span>
+    </h1>
+
+    <p>
+      InterviewAI simulates real interviews using Artificial Intelligence.
+      Improve confidence, communication, and technical skills with instant AI feedback.
+    </p>
+
+    <div class="hero-actions">
+      <button class="primary-btn" id="primaryBtn">Get Started Free</button>
+      <button class="secondary-btn">Watch Demo</button>
     </div>
 
-    <div class="hero-visual">
-        <div class="orb"></div>
-        <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png">
+    <div class="trust">
+      <span>✔ Students</span>
+      <span>✔ Freshers</span>
+      <span>✔ Professionals</span>
     </div>
+  </div>
+
+  <div class="hero-image">
+    <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" alt="AI Interview">
+  </div>
 </section>
 
-<!-- FEATURES -->
+<!-- ================= FEATURES ================= -->
 <section id="features" class="features">
-    <h2>Why InterviewAI?</h2>
-    <div class="feature-grid">
-        <div class="feature-card">
-            <h3>🤖 Smart Questions</h3>
-            <p>AI generates questions from your resume & skill level.</p>
-        </div>
-        <div class="feature-card">
-            <h3>🎥 Emotion Analysis</h3>
-            <p>Detects confidence, stress & clarity in real time.</p>
-        </div>
-        <div class="feature-card">
-            <h3>📊 Detailed Reports</h3>
-            <p>Actionable insights to improve interview performance.</p>
-        </div>
+  <h2>Why Choose InterviewAI?</h2>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h3>🤖 Resume-Based Questions</h3>
+      <p>AI generates interview questions based on your skills and profile.</p>
     </div>
+
+    <div class="feature-card">
+      <h3>🎥 Emotion & Confidence Analysis</h3>
+      <p>Analyze facial expressions, speech clarity, and confidence.</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>📊 Detailed AI Reports</h3>
+      <p>Actionable feedback with improvement suggestions.</p>
+    </div>
+
+    <div class="feature-card">
+      <h3>⚡ Instant Feedback</h3>
+      <p>Know your strengths and weaknesses immediately.</p>
+    </div>
+  </div>
 </section>
 
-<!-- PROCESS -->
-<section id="process" class="process">
-    <h2>How It Works</h2>
-    <div class="steps">
-        <div class="step">1️⃣ Create Profile</div>
-        <div class="step">2️⃣ Upload Resume</div>
-        <div class="step">3️⃣ Take Interview</div>
-        <div class="step">4️⃣ Get AI Feedback</div>
+<!-- ================= INTERVIEW MODES ================= -->
+<section id="modes" class="modes">
+  <h2>AI Interview Modes</h2>
+
+  <div class="mode-grid">
+    <div class="mode-card">
+      <h3>🎯 Technical Interview</h3>
+      <p>Frontend, Backend, DSA & role-based questions.</p>
     </div>
+
+    <div class="mode-card">
+      <h3>💬 HR Interview</h3>
+      <p>Communication skills, attitude & culture fit.</p>
+    </div>
+
+    <div class="mode-card">
+      <h3>🧠 Behavioral Interview</h3>
+      <p>STAR-based situational questions.</p>
+    </div>
+
+    <div class="mode-card">
+      <h3>🔀 Mixed Interview</h3>
+      <p>Combination of technical + HR + behavioral.</p>
+    </div>
+  </div>
 </section>
 
-<!-- STATS -->
-<section id="stats" class="stats">
-    <div class="stat-box">
-        <h3>92%</h3>
-        <p>User Confidence Boost</p>
-    </div>
-    <div class="stat-box">
-        <h3>3×</h3>
-        <p>Faster Interview Prep</p>
-    </div>
-    <div class="stat-box">
-        <h3>100+</h3>
-        <p>AI Interview Scenarios</p>
-    </div>
+<!-- ================= ROLE BASED ================= -->
+<section class="roles">
+  <h2>Role-Based Preparation</h2>
+
+  <div class="role-grid">
+    <div class="role">Frontend Developer</div>
+    <div class="role">Backend Developer</div>
+    <div class="role">Full Stack Developer</div>
+    <div class="role">Data Scientist</div>
+    <div class="role">ML Engineer</div>
+    <div class="role">Software Engineer</div>
+  </div>
 </section>
 
-<!-- CTA -->
+<!-- ================= HOW IT WORKS ================= -->
+<section id="how" class="how">
+  <h2>How It Works</h2>
+
+  <div class="steps">
+    <div class="step">
+      <span>1</span>
+      <h4>Create Account</h4>
+      <p>Sign up and access your dashboard.</p>
+    </div>
+
+    <div class="step">
+      <span>2</span>
+      <h4>Complete Profile</h4>
+      <p>Add skills, experience & preferences.</p>
+    </div>
+
+    <div class="step">
+      <span>3</span>
+      <h4>Take Interview</h4>
+      <p>Answer AI-generated interview questions.</p>
+    </div>
+
+    <div class="step">
+      <span>4</span>
+      <h4>Get AI Feedback</h4>
+      <p>Receive detailed AI performance reports.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= REALTIME FEEDBACK ================= -->
+<section class="realtime">
+  <h2>Real-Time AI Feedback</h2>
+
+  <div class="feedback-grid">
+    <div class="feedback-card">🎤 Speech & Voice Analysis</div>
+    <div class="feedback-card">😃 Emotion Detection</div>
+    <div class="feedback-card">👀 Eye Contact & Body Language</div>
+    <div class="feedback-card">📈 Performance Scoring</div>
+  </div>
+</section>
+
+<!-- ================= SECURITY ================= -->
+<section class="security">
+  <h2>Security & Privacy</h2>
+
+  <ul class="security-list">
+    <li>🔐 Encrypted user data storage</li>
+    <li>🔒 Secure authentication system</li>
+    <li>🛡 No video stored without consent</li>
+    <li>📁 User-controlled data deletion</li>
+  </ul>
+</section>
+
+<!-- ================= TECH STACK ================= -->
+<section id="tech" class="tech">
+  <h2>Built With Modern Technologies</h2>
+
+  <div class="tech-grid">
+    <span>HTML, CSS, JavaScript</span>
+    <span>Node.js & Express</span>
+    <span>MongoDB</span>
+    <span>FastAPI</span>
+    <span>Whisper (Speech AI)</span>
+    <span>Computer Vision</span>
+  </div>
+</section>
+<!-- ================= FAQ ================= -->
+<section class="faq">
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq-container">
+
+    <div class="faq-item">
+      <div class="faq-question">
+        <span>What is InterviewAI?</span>
+        <span class="icon">+</span>
+      </div>
+      <div class="faq-answer">
+        InterviewAI is an AI-powered platform that simulates real interviews
+        and provides instant feedback on confidence, communication, and skills.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">
+        <span>Is InterviewAI free to use?</span>
+        <span class="icon">+</span>
+      </div>
+      <div class="faq-answer">
+        Yes, you can start with free interviews. Advanced features can be added later.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">
+        <span>Does InterviewAI store my video?</span>
+        <span class="icon">+</span>
+      </div>
+      <div class="faq-answer">
+        No. Your interview video is processed securely and not stored without consent.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question">
+        <span>Which roles are supported?</span>
+        <span class="icon">+</span>
+      </div>
+      <div class="faq-answer">
+        Frontend, Backend, Full Stack, Data Science, ML, and Software Engineering roles.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= CTA ================= -->
 <section class="cta">
-    <h2>Ready to Ace Your Interview?</h2>
-    <button >Get Started Now</button>
+  <h2>Ready to Ace Your Interview?</h2>
+  <p>Start practicing today with InterviewAI.</p>
+  <button id="ctaBtn">Start Now</button>
 </section>
 
+<!-- ================= FOOTER ================= -->
 <footer>
-    © 2026 InterviewAI • Built with AI
+  © 2026 InterviewAI • AI-Powered Interview Platform
 </footer>
 
+<script src="js/index.js"></script>
 </body>
 </html>

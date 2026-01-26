@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InterviewAI Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/Dashboard.css">
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="logo">InterviewAI</div>
+
+  <div class="menu">
+    <a href="dashboard.html" class="active">🏠 Dashboard</a>
+    <a href="../profile/profile.html">👤 User Profile</a>
+    <a href="../interview/interview.html">🎥 Start Interview</a>
+    <a href="../report/report.html">📊 Reports</a>
+    <a href="../feedback/feedback.html">💬 Feedback</a>
+    <a href="#" onclick="logout()">🚪 Logout</a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <div class="header">
+    <h2>AI-Powered Smart Interview Platform</h2>
+  </div>
+
+  <div class="content">
+    <div class="welcome" id="welcomeText">Welcome 👋</div>
+
+    <div class="cards">
+
+      <div class="card">
+        <h3>Profile Status</h3>
+        <div class="status" id="profileStatus">Checking...</div>
+      </div>
+
+      <div class="card">
+        <h3>Profile Completion</h3>
+        <div class="progress-bar">
+          <div class="progress-fill" id="profileProgress"></div>
+        </div>
+        <p id="profilePercent">0% Completed</p>
+      </div>
+
+      <div class="card">
+        <h3>Skills Snapshot</h3>
+        <div class="skills" id="skillsBox">
+          <span class="skill">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Interview Readiness</h3>
+        <strong id="readinessLevel">Low</strong>
+        <p id="readinessMsg">Complete your profile</p>
+      </div>
+
+      <div class="card">
+        <h3>Interview</h3>
+       <button class="start-btn"
+  onclick="window.location.href='../interview/interview-setup.html'">
+  Start Interview
+</button>
+
+      </div>
+
+      <div class="card highlight">
+        <h3>AI Suggestions</h3>
+        <ul>
+          <li>📌 Improve technical skills</li>
+          <li>🎯 Practice mock interviews</li>
+          <li>🧠 Review feedback reports</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="js/dashboard.js"></script>
+</body>
+</html>

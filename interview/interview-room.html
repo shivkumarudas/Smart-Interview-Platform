@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Interview | InterviewAI</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/interview-room.css">
+</head>
+
+<body>
+
+<header class="topbar">
+  <span class="brand">InterviewAI</span>
+  <span id="timer">⏱ 00:00</span>
+</header>
+
+<div class="room">
+
+  <!-- USER PANEL -->
+  <div class="panel user-panel">
+    <h3>You</h3>
+    <video id="userVideo" autoplay muted></video>
+  </div>
+
+  <!-- AI PANEL -->
+  <div class="panel ai-panel">
+    <h3>AI Interviewer</h3>
+    <div class="ai-avatar">🤖</div>
+
+    <div class="question-box">
+      <p id="questionText">Loading interview...</p>
+    </div>
+
+    <button id="nextBtn">Next Question</button>
+  </div>
+
+</div>
+
+<script src="js/interview-room.js"></script>
+</body>
+</html>

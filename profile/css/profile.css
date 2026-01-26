@@ -1,0 +1,137 @@
+/* RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+}
+
+/* PAGE */
+body {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f7fb;
+  color: #2c3e50;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 260px;
+  background: linear-gradient(180deg, #0f2a4d, #143c6e);
+  color: #fff;
+  padding: 30px 20px;
+  position: fixed;
+  height: 100vh;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 40px;
+}
+
+.menu a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 15px;
+  transition: background 0.2s;
+}
+
+.menu a:hover,
+.menu a.active {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* MAIN FORM AREA */
+#profileForm {
+  margin-left: 300px;
+  padding: 40px;
+  max-width: 900px;
+  width: 100%;
+}
+
+/* FORM GROUP */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #ccd3df;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+
+.form-group textarea {
+  resize: vertical;
+}
+
+/* FOCUS */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #1f6ae1;
+  box-shadow: 0 0 0 2px rgba(31, 106, 225, 0.1);
+}
+
+/* RANGE */
+input[type="range"] {
+  padding: 0;
+}
+
+/* BUTTON */
+.save-btn {
+  margin-top: 10px;
+  background: #1f6ae1;
+  color: #fff;
+  border: none;
+  padding: 14px 30px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.save-btn:hover {
+  background: #1557c0;
+  transform: translateY(-1px);
+}
+
+/* STATUS */
+.status {
+  margin-top: 15px;
+  font-weight: 600;
+  color: #27ae60;
+  display: none;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .sidebar {
+    display: none;
+  }
+
+  #profileForm {
+    margin-left: 0;
+    padding: 25px;
+  }
+}
