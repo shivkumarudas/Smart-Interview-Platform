@@ -69,7 +69,7 @@ loadDashboard();
 
 /* ================= START INTERVIEW ================= */
 document.getElementById("startInterviewBtn").addEventListener("click", () => {
-  window.location.href = "../interview-selection/interview-selection.html";
+  window.location.href = "../interview/interview.html";
 });
 
 /* ================= LOGOUT ================= */

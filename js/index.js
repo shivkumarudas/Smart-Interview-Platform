@@ -22,3 +22,10 @@ if (user && user.id) {
   primaryBtn.onclick = () => window.location.href = "auth/signup.html";
   ctaBtn.onclick = () => window.location.href = "auth/signup.html";
 }
+/* ================= FAQ ACCORDION ================= */
+document.querySelectorAll(".faq-question").forEach(item => {
+  item.addEventListener("click", () => {
+    const parent = item.parentElement;
+    parent.classList.toggle("active");
+  });
+});
