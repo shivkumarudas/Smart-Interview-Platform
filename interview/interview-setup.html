@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interview Setup | InterviewAI</title>
+
+<link rel="stylesheet" href="css/interview-setup.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="container">
+  <h1>Interview Setup</h1>
+  <p>Configure your AI interview</p>
+
+  <form id="setupForm">
+
+    <label>Interview Type</label>
+    <select id="type" required>
+      <option value="">Select</option>
+      <option>HR</option>
+      <option>Technical</option>
+      <option>Behavioral</option>
+      <option>Mixed</option>
+    </select>
+
+    <label>Difficulty Level</label>
+    <select id="difficulty" required>
+      <option value="">Select</option>
+      <option>Easy</option>
+      <option>Medium</option>
+      <option>Hard</option>
+    </select>
+
+    <button type="submit">Start Interview</button>
+
+  </form>
+</div>
+
+<script src="js/interview-setup.js"></script>
+</body>
+</html>
