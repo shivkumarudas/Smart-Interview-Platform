@@ -1,25 +1,36 @@
-console.log("interview-setup loaded");
+console.log("Interview setup loaded");
 
+// AUTH CHECK
 const user = JSON.parse(localStorage.getItem("user"));
 if (!user) {
   window.location.href = "../auth/login.html";
 }
 
+// FORM HANDLER
 document.getElementById("setupForm").addEventListener("submit", (e) => {
   e.preventDefault();
 
   const interviewConfig = {
-    type: document.getElementById("type").value,
-    difficulty: document.getElementById("difficulty").value
+    interviewType: document.getElementById("interviewType").value,
+    difficulty: document.getElementById("difficulty").value,
+    duration: document.getElementById("duration").value,
+    startedAt: new Date().toISOString()
   };
 
-  if (!interviewConfig.type || !interviewConfig.difficulty) {
-    alert("Select all options");
-    return;
+  // VALIDATION
+  for (let key in interviewConfig) {
+    if (!interviewConfig[key]) {
+      alert("Please select all required fields");
+      return;
+    }
   }
 
-  // store config for interview room
-  localStorage.setItem("interviewConfig", JSON.stringify(interviewConfig));
+  // STORE CONFIG
+  localStorage.setItem(
+    "interviewConfig",
+    JSON.stringify(interviewConfig)
+  );
 
-  window.location.href = "interview-room.html";
+  // GO TO INTERVIEW ROOM
+  window.location.href = "../interview/interview-room.html";
 });
