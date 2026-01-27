@@ -17,7 +17,7 @@ mongoose.set("bufferCommands", false);
 
 // ================== DB ==================
 const MONGO_URI =
-  "mongodb+srv://testuser:Test12345@cluster0.xxxxx.mongodb.net/interviewAI?retryWrites=true&w=majority";
+  "mongodb+srv://testuser:Test12345@cluster0.ibc99sn.mongodb.net/interviewAI?retryWrites=true&w=majority";
 
 // ================== START SERVER ==================
 async function startServer() {
@@ -29,7 +29,7 @@ async function startServer() {
     app.get("/ping", (req, res) => {
       res.send("pong");
     });
-
+    
     // ================== SIGNUP ==================
     app.post("/signup", async (req, res) => {
       try {
