@@ -1,42 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Interview Setup | InterviewAI</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Interview Setup | InterviewAI</title>
 
-<link rel="stylesheet" href="css/interview-setup.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/interview-setup.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
-<div class="container">
-  <h1>Interview Setup</h1>
-  <p>Configure your AI interview</p>
+<div class="setup-container">
+
+  <h2>Interview Setup</h2>
+  <p class="subtitle">Customize your interview experience</p>
 
   <form id="setupForm">
 
-    <label>Interview Type</label>
-    <select id="type" required>
-      <option value="">Select</option>
-      <option>HR</option>
-      <option>Technical</option>
-      <option>Behavioral</option>
-      <option>Mixed</option>
-    </select>
+    <div class="form-group">
+      <label>Interview Type</label>
+      <select id="interviewType" required>
+        <option value="">Select</option>
+        <option>Technical</option>
+        <option>HR</option>
+        <option>Behavioral</option>
+        <option>Mixed</option>
+      </select>
+    </div>
 
-    <label>Difficulty Level</label>
-    <select id="difficulty" required>
-      <option value="">Select</option>
-      <option>Easy</option>
-      <option>Medium</option>
-      <option>Hard</option>
-    </select>
+    <div class="form-group">
+      <label>Difficulty Level</label>
+      <select id="difficulty" required>
+        <option value="">Select</option>
+        <option>Easy</option>
+        <option>Medium</option>
+        <option>Hard</option>
+      </select>
+    </div>
 
-    <button type="submit">Start Interview</button>
+    <div class="form-group">
+      <label>Interview Duration</label>
+      <select id="duration">
+        <option value="10">10 Minutes</option>
+        <option value="15">15 Minutes</option>
+        <option value="20">20 Minutes</option>
+      </select>
+    </div>
+
+    <button type="submit" class="start-btn">
+      Start Interview
+    </button>
 
   </form>
+
 </div>
 
 <script src="js/interview-setup.js"></script>
