@@ -1,42 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Interview | InterviewAI</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live Interview | InterviewAI</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/interview-room.css">
+  <link rel="stylesheet" href="css/interview-room.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
-<header class="topbar">
-  <span class="brand">InterviewAI</span>
-  <span id="timer">⏱ 00:00</span>
-</header>
+<div class="interview-container">
 
-<div class="room">
+  <!-- HEADER -->
+  <header class="header">
+    <h2>🎥 Live AI Interview</h2>
+    <span class="status">● Recording</span>
+  </header>
 
-  <!-- USER PANEL -->
-  <div class="panel user-panel">
-    <h3>You</h3>
-    <video id="userVideo" autoplay muted></video>
-  </div>
+  <!-- MAIN INTERVIEW AREA -->
+  <div class="room">
 
-  <!-- AI PANEL -->
-  <div class="panel ai-panel">
-    <h3>AI Interviewer</h3>
-    <div class="ai-avatar">🤖</div>
-
-    <div class="question-box">
-      <p id="questionText">Loading interview...</p>
+    <!-- USER CAMERA -->
+    <div class="panel user-panel">
+      <h3>You</h3>
+      <video id="userVideo" autoplay muted></video>
+      <p class="hint">Camera is live</p>
     </div>
 
-    <button id="nextBtn">Next Question</button>
+    <!-- AI INTERVIEWER -->
+    <div class="panel ai-panel">
+      <h3>AI Interviewer</h3>
+
+      <div class="ai-avatar">
+        <div class="circle"></div>
+      </div>
+
+      <div class="ai-text" id="aiText">
+        Hello! I will be your interviewer today.
+      </div>
+    </div>
+
+  </div>
+<div class="answer-box">
+  <p class="label">Your Answer</p>
+  <div id="answerText" class="answer-text">Click Start Answer and speak…</div>
+
+  <div class="answer-controls">
+    <button id="startAnswer">🎙 Start Answer</button>
+    <button id="stopAnswer">⏹ Stop</button>
+  </div>
+</div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <button class="mic-btn">🎙 Mic On</button>
+    <button class="end-btn" onclick="endInterview()">⏹ End Interview</button>
   </div>
 
 </div>
+<canvas id="faceCanvas" width="300" height="200" style="display:none;"></canvas>
 
 <script src="js/interview-room.js"></script>
 </body>
