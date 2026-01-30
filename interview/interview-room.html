@@ -7,6 +7,9 @@
 
   <link rel="stylesheet" href="css/interview-room.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- LOTTIE FOR AI AVATAR -->
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 </head>
 
 <body>
@@ -33,33 +36,48 @@
     <div class="panel ai-panel">
       <h3>AI Interviewer</h3>
 
+      <!-- AI AVATAR -->
       <div class="ai-avatar">
-        <div class="circle"></div>
+        <lottie-player
+          id="aiAvatar"
+          src="assets/ai-idle.json"
+          background="transparent"
+          speed="1"
+          loop
+          autoplay>
+        </lottie-player>
       </div>
 
+      <!-- AI SPEECH TEXT -->
       <div class="ai-text" id="aiText">
         Hello! I will be your interviewer today.
       </div>
     </div>
 
   </div>
-<div class="answer-box">
-  <p class="label">Your Answer</p>
-  <div id="answerText" class="answer-text">Click Start Answer and speak…</div>
 
-  <div class="answer-controls">
-    <button id="startAnswer">🎙 Start Answer</button>
-    <button id="stopAnswer">⏹ Stop</button>
+  <!-- ANSWER BOX -->
+  <div class="answer-box">
+    <p class="label">Your Answer</p>
+    <div id="answerText" class="answer-text">
+      Click Start Answer and speak…
+    </div>
+
+    <div class="answer-controls">
+      <button id="startAnswer">🎙 Start Answer</button>
+      <button id="stopAnswer">⏹ Stop</button>
+    </div>
   </div>
-</div>
 
-  <!-- CONTROLS -->
+  <!-- FOOTER CONTROLS -->
   <div class="controls">
     <button class="mic-btn">🎙 Mic On</button>
     <button class="end-btn" onclick="endInterview()">⏹ End Interview</button>
   </div>
 
 </div>
+
+<!-- hidden canvas for future emotion detection -->
 <canvas id="faceCanvas" width="300" height="200" style="display:none;"></canvas>
 
 <script src="js/interview-room.js"></script>

@@ -20,12 +20,28 @@ const aiText = document.getElementById("aiText");
 const answerText = document.getElementById("answerText");
 const startBtn = document.getElementById("startAnswer");
 const stopBtn = document.getElementById("stopAnswer");
+const aiAvatar = document.getElementById("aiAvatar");
+
+/* ================= AI AVATAR STATES ================= */
+function setAIState(state) {
+  const states = {
+    idle: "assets/ai-idle.json",
+    speaking: "assets/ai-speaking.json",
+    thinking: "assets/ai-thinking.json"
+  };
+  if (aiAvatar) aiAvatar.setAttribute("src", states[state]);
+}
 
 /* ================= AI SPEECH ================= */
 function speak(text) {
   speechSynthesis.cancel();
+  setAIState("speaking");
+
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "en-US";
+
+  u.onend = () => setAIState("idle");
+
   speechSynthesis.speak(u);
 }
 
@@ -66,6 +82,8 @@ async function askAIQuestion() {
   }
 
   try {
+    setAIState("thinking");
+
     const res = await fetch("http://127.0.0.1:5000/interview/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -76,19 +94,18 @@ async function askAIQuestion() {
     });
 
     const data = await res.json();
-
-    if (!data.question) {
-      throw new Error("AI returned empty question");
-    }
+    if (!data.question) throw new Error("AI returned empty question");
 
     questionCount++;
     aiText.innerText = data.question;
     speak(data.question);
+
     answerText.innerText = "Click Start Answer and speak…";
 
   } catch (err) {
     console.error("AI question error:", err);
     aiText.innerText = "AI failed to generate a question.";
+    setAIState("idle");
   }
 }
 
@@ -122,6 +139,7 @@ if ("webkitSpeechRecognition" in window) {
 startBtn.onclick = () => {
   finalAnswer = "";
   answerText.innerText = "Listening...";
+  setAIState("thinking");
   recognition.start();
 };
 
@@ -170,6 +188,7 @@ async function startFaceAnalysis() {
 
   faceInterval = setInterval(async () => {
     const faces = await detector.detect(video);
+
     if (!faces.length) {
       faceMovements += 2;
       return;
@@ -195,6 +214,7 @@ function calculateStress() {
 /* ================= END INTERVIEW ================= */
 function endInterview() {
   clearInterval(faceInterval);
+  setAIState("idle");
 
   speak("Thank you. This concludes your interview.");
   aiText.innerText = "Interview completed. Generating report...";
