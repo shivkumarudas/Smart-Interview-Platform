@@ -26,48 +26,73 @@ function speak(text) {
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "en-US";
-  u.rate = 1;
   speechSynthesis.speak(u);
 }
 
 /* ================= INTERVIEW STATE ================= */
-let questionCount = 1;
+let questionCount = 0;
 const maxQuestions = 5;
 let interviewLog = [];
 
-/* ================= CONFIDENCE (VOICE) METRICS ================= */
+/* ================= VOICE METRICS ================= */
 let answerStartTime = null;
-let answerEndTime = null;
 let pauseCount = 0;
 let lastSpeechTime = null;
 let finalAnswer = "";
 
-/* ================= STRESS (FACE) METRICS ================= */
-let faceCheckInterval;
+/* ================= FACE METRICS ================= */
 let faceMovements = 0;
 let lastFaceBox = null;
+let faceInterval;
 
-/* ================= AI INTRO ================= */
-setTimeout(() => {
+/* ================= START INTERVIEW ================= */
+setTimeout(async () => {
   const intro = `Hello ${user.name || "Candidate"}. 
-  This will be a ${interviewConfig.difficulty} ${interviewConfig.interviewType} interview. 
-  Let's begin.`;
+This will be a ${interviewConfig.difficulty} ${interviewConfig.interviewType} interview. 
+Let us begin.`;
 
   aiText.innerText = intro;
   speak(intro);
 
   startFaceAnalysis();
-  setTimeout(askQuestion, 5000);
+  setTimeout(askAIQuestion, 5000);
 }, 1500);
 
-/* ================= FIRST QUESTION ================= */
-function askQuestion() {
-  const question = "Can you explain one core skill you are confident in?";
-  aiText.innerText = question;
-  speak(question);
+/* ================= GET AI QUESTION ================= */
+async function askAIQuestion() {
+  if (questionCount >= maxQuestions) {
+    endInterview();
+    return;
+  }
+
+  try {
+    const res = await fetch("http://127.0.0.1:5000/interview/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: user.id,
+        config: interviewConfig
+      })
+    });
+
+    const data = await res.json();
+
+    if (!data.question) {
+      throw new Error("AI returned empty question");
+    }
+
+    questionCount++;
+    aiText.innerText = data.question;
+    speak(data.question);
+    answerText.innerText = "Click Start Answer and speak…";
+
+  } catch (err) {
+    console.error("AI question error:", err);
+    aiText.innerText = "AI failed to generate a question.";
+  }
 }
 
-/* ================= SPEECH RECOGNITION ================= */
+/* ================= SPEECH TO TEXT ================= */
 let recognition;
 
 if ("webkitSpeechRecognition" in window) {
@@ -78,12 +103,9 @@ if ("webkitSpeechRecognition" in window) {
 
   recognition.onresult = (event) => {
     const now = Date.now();
-
     if (!answerStartTime) answerStartTime = now;
 
-    if (lastSpeechTime && now - lastSpeechTime > 1200) {
-      pauseCount++;
-    }
+    if (lastSpeechTime && now - lastSpeechTime > 1200) pauseCount++;
     lastSpeechTime = now;
 
     let transcript = "";
@@ -94,13 +116,9 @@ if ("webkitSpeechRecognition" in window) {
     finalAnswer = transcript;
     answerText.innerText = transcript;
   };
-
-  recognition.onerror = (e) => console.error("Speech error:", e);
-} else {
-  alert("Speech Recognition not supported in this browser");
 }
 
-/* ================= ANSWER CONTROLS ================= */
+/* ================= CONTROLS ================= */
 startBtn.onclick = () => {
   finalAnswer = "";
   answerText.innerText = "Listening...";
@@ -109,133 +127,82 @@ startBtn.onclick = () => {
 
 stopBtn.onclick = () => {
   recognition.stop();
-  answerEndTime = Date.now();
 
-  const durationSec = (answerEndTime - answerStartTime) / 1000;
-  const words = finalAnswer.trim().split(/\s+/).filter(Boolean).length;
-  const wpm = durationSec > 0 ? Math.round((words / durationSec) * 60) : 0;
-
-  const confidence = calculateConfidence(durationSec, pauseCount, wpm);
+  const duration = (Date.now() - answerStartTime) / 1000;
+  const words = finalAnswer.trim().split(/\s+/).length;
+  const wpm = Math.round((words / duration) * 60);
+  const confidence = calculateConfidence(duration, pauseCount, wpm);
 
   interviewLog.push({
     question: aiText.innerText,
     answer: finalAnswer,
-    durationSec,
-    pauseCount,
+    duration,
+    pauses: pauseCount,
     wpm,
     confidence
   });
 
   resetVoiceMetrics();
-  setTimeout(askFollowUp, 1500);
+  setTimeout(askAIQuestion, 2000);
 };
 
-/* ================= ADAPTIVE FOLLOW-UP ================= */
-function askFollowUp() {
-  questionCount++;
-
-  if (questionCount > maxQuestions) {
-    endInterview();
-    return;
-  }
-
-  const lastConfidence = interviewLog.at(-1).confidence;
-  let nextQuestion;
-
-  if (lastConfidence < 5) {
-    nextQuestion = "Can you explain that in simpler terms?";
-  } else {
-    nextQuestion = "Can you give a real-world example of this skill?";
-  }
-
-  aiText.innerText = nextQuestion;
-  speak(nextQuestion);
-  answerText.innerText = "Click Start Answer and speak…";
-}
-
-/* ================= CONFIDENCE SCORE ================= */
+/* ================= CONFIDENCE ================= */
 function calculateConfidence(duration, pauses, wpm) {
   let score = 5;
-
   if (duration < 5) score -= 2;
   if (pauses >= 2) score -= pauses;
   if (wpm < 90) score -= 2;
   if (wpm > 130) score += 2;
-
   return Math.max(1, Math.min(10, score));
 }
 
 function resetVoiceMetrics() {
   answerStartTime = null;
-  answerEndTime = null;
   pauseCount = 0;
   lastSpeechTime = null;
 }
 
-/* ================= FACE / STRESS ANALYSIS ================= */
+/* ================= FACE / STRESS ================= */
 async function startFaceAnalysis() {
-  if (!("FaceDetector" in window)) {
-    console.warn("FaceDetector not supported");
-    return;
-  }
+  if (!("FaceDetector" in window)) return;
 
   const detector = new FaceDetector({ fastMode: true });
 
-  faceCheckInterval = setInterval(async () => {
-    try {
-      const faces = await detector.detect(video);
-
-      if (faces.length === 0) {
-        faceMovements += 2;
-        return;
-      }
-
-      const box = faces[0].boundingBox;
-
-      if (lastFaceBox) {
-        const dx = Math.abs(box.x - lastFaceBox.x);
-        const dy = Math.abs(box.y - lastFaceBox.y);
-
-        if (dx + dy > 15) {
-          faceMovements++;
-        }
-      }
-
-      lastFaceBox = box;
-    } catch (err) {
-      console.error("Face detection error:", err);
+  faceInterval = setInterval(async () => {
+    const faces = await detector.detect(video);
+    if (!faces.length) {
+      faceMovements += 2;
+      return;
     }
+
+    const box = faces[0].boundingBox;
+    if (lastFaceBox) {
+      const movement = Math.abs(box.x - lastFaceBox.x) +
+                       Math.abs(box.y - lastFaceBox.y);
+      if (movement > 15) faceMovements++;
+    }
+    lastFaceBox = box;
   }, 1200);
 }
 
-function calculateStressScore() {
+function calculateStress() {
   let score = 3;
-
   if (faceMovements > 5) score += 2;
   if (faceMovements > 10) score += 3;
-  if (faceMovements > 15) score += 4;
-
   return Math.min(10, score);
 }
 
 /* ================= END INTERVIEW ================= */
 function endInterview() {
-  const stressScore = calculateStressScore();
+  clearInterval(faceInterval);
 
   speak("Thank you. This concludes your interview.");
   aiText.innerText = "Interview completed. Generating report...";
 
-  const interviewSummary = {
+  sessionStorage.setItem("interviewSummary", JSON.stringify({
     interviewLog,
-    stressScore
-  };
-
-  sessionStorage.setItem(
-    "interviewSummary",
-    JSON.stringify(interviewSummary)
-  );
-
-  clearInterval(faceCheckInterval);
+    stressScore: calculateStress()
+  }));
 
   setTimeout(() => {
     window.location.href = "../report/report.html";
