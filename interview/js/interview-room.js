@@ -39,7 +39,6 @@ function speak(text) {
 
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "en-US";
-
   u.onend = () => setAIState("idle");
 
   speechSynthesis.speak(u);
@@ -50,28 +49,16 @@ let questionCount = 0;
 const maxQuestions = 5;
 let interviewLog = [];
 
-/* ================= VOICE METRICS ================= */
-let answerStartTime = null;
-let pauseCount = 0;
-let lastSpeechTime = null;
-let finalAnswer = "";
-
-/* ================= FACE METRICS ================= */
-let faceMovements = 0;
-let lastFaceBox = null;
-let faceInterval;
-
 /* ================= START INTERVIEW ================= */
 setTimeout(async () => {
-  const intro = `Hello ${user.name || "Candidate"}. 
-This will be a ${interviewConfig.difficulty} ${interviewConfig.interviewType} interview. 
+  const intro = `Hello ${user.name || "Candidate"}.
+This will be a ${interviewConfig.difficulty} ${interviewConfig.interviewType} interview.
 Let us begin.`;
 
   aiText.innerText = intro;
   speak(intro);
 
-  startFaceAnalysis();
-  setTimeout(askAIQuestion, 5000);
+  setTimeout(askAIQuestion, 4000);
 }, 1500);
 
 /* ================= GET AI QUESTION ================= */
@@ -84,17 +71,28 @@ async function askAIQuestion() {
   try {
     setAIState("thinking");
 
-    const res = await fetch("http://127.0.0.1:5000/interview/start", {
+    const res = await fetch("http://127.0.0.1:5000/interview/question", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId: user.id,
-        config: interviewConfig
+        profile: {
+          role: interviewConfig.role,
+          skills: interviewConfig.skills,
+          experience: interviewConfig.experience,
+          education: interviewConfig.education
+        },
+        config: {
+          interviewType: interviewConfig.interviewType,
+          difficulty: interviewConfig.difficulty
+        }
       })
     });
 
     const data = await res.json();
-    if (!data.question) throw new Error("AI returned empty question");
+
+    if (!res.ok || !data.question) {
+      throw new Error(data.error || "AI returned empty question");
+    }
 
     questionCount++;
     aiText.innerText = data.question;
@@ -104,13 +102,14 @@ async function askAIQuestion() {
 
   } catch (err) {
     console.error("AI question error:", err);
-    aiText.innerText = "AI failed to generate a question.";
+    aiText.innerText = err.message;
     setAIState("idle");
   }
 }
 
 /* ================= SPEECH TO TEXT ================= */
 let recognition;
+let finalAnswer = "";
 
 if ("webkitSpeechRecognition" in window) {
   recognition = new webkitSpeechRecognition();
@@ -119,17 +118,10 @@ if ("webkitSpeechRecognition" in window) {
   recognition.lang = "en-US";
 
   recognition.onresult = (event) => {
-    const now = Date.now();
-    if (!answerStartTime) answerStartTime = now;
-
-    if (lastSpeechTime && now - lastSpeechTime > 1200) pauseCount++;
-    lastSpeechTime = now;
-
     let transcript = "";
     for (let i = event.resultIndex; i < event.results.length; i++) {
       transcript += event.results[i][0].transcript;
     }
-
     finalAnswer = transcript;
     answerText.innerText = transcript;
   };
@@ -146,83 +138,22 @@ startBtn.onclick = () => {
 stopBtn.onclick = () => {
   recognition.stop();
 
-  const duration = (Date.now() - answerStartTime) / 1000;
-  const words = finalAnswer.trim().split(/\s+/).length;
-  const wpm = Math.round((words / duration) * 60);
-  const confidence = calculateConfidence(duration, pauseCount, wpm);
-
   interviewLog.push({
     question: aiText.innerText,
-    answer: finalAnswer,
-    duration,
-    pauses: pauseCount,
-    wpm,
-    confidence
+    answer: finalAnswer
   });
 
-  resetVoiceMetrics();
   setTimeout(askAIQuestion, 2000);
 };
 
-/* ================= CONFIDENCE ================= */
-function calculateConfidence(duration, pauses, wpm) {
-  let score = 5;
-  if (duration < 5) score -= 2;
-  if (pauses >= 2) score -= pauses;
-  if (wpm < 90) score -= 2;
-  if (wpm > 130) score += 2;
-  return Math.max(1, Math.min(10, score));
-}
-
-function resetVoiceMetrics() {
-  answerStartTime = null;
-  pauseCount = 0;
-  lastSpeechTime = null;
-}
-
-/* ================= FACE / STRESS ================= */
-async function startFaceAnalysis() {
-  if (!("FaceDetector" in window)) return;
-
-  const detector = new FaceDetector({ fastMode: true });
-
-  faceInterval = setInterval(async () => {
-    const faces = await detector.detect(video);
-
-    if (!faces.length) {
-      faceMovements += 2;
-      return;
-    }
-
-    const box = faces[0].boundingBox;
-    if (lastFaceBox) {
-      const movement = Math.abs(box.x - lastFaceBox.x) +
-                       Math.abs(box.y - lastFaceBox.y);
-      if (movement > 15) faceMovements++;
-    }
-    lastFaceBox = box;
-  }, 1200);
-}
-
-function calculateStress() {
-  let score = 3;
-  if (faceMovements > 5) score += 2;
-  if (faceMovements > 10) score += 3;
-  return Math.min(10, score);
-}
-
 /* ================= END INTERVIEW ================= */
 function endInterview() {
-  clearInterval(faceInterval);
   setAIState("idle");
-
   speak("Thank you. This concludes your interview.");
-  aiText.innerText = "Interview completed. Generating report...";
 
-  sessionStorage.setItem("interviewSummary", JSON.stringify({
-    interviewLog,
-    stressScore: calculateStress()
-  }));
+  aiText.innerText = "Interview completed.";
+
+  sessionStorage.setItem("interviewSummary", JSON.stringify(interviewLog));
 
   setTimeout(() => {
     window.location.href = "../report/report.html";
