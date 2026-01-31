@@ -1,35 +1,68 @@
-const OpenAI = require("openai");
+const axios = require("axios");
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+if (!GROQ_API_KEY) {
+  throw new Error("❌ GROQ_API_KEY missing");
+}
 
-async function generateQuestion(profile, config) {
+async function generateQuestion(profile = {}, config = {}) {
+  const role = profile.role || "Software Developer";
+  const skills = profile.skills || "Programming, Problem Solving";
+  const experience = profile.experience || "Fresher";
+  const education = profile.education || "Bachelor's Degree";
+
+  const interviewType = config.interviewType || "Technical";
+  const difficulty = config.difficulty || "Easy";
+
   const prompt = `
 You are a professional HR interviewer.
 
-Candidate details:
-Role: ${profile.role}
-Skills: ${profile.skills}
-Experience: ${profile.experience}
-Education: ${profile.education}
+Role: ${role}
+Skills: ${skills}
+Experience: ${experience}
+Education: ${education}
 
-Interview type: ${config.interviewType}
-Difficulty: ${config.difficulty}
+Interview type: ${interviewType}
+Difficulty: ${difficulty}
 
-Ask ONE clear interview question.
+Ask ONE clear interview question only.
 Do not add explanations.
 `;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-3.5-turbo",
-    messages: [
-      { role: "user", content: prompt }
-    ],
-    temperature: 0.7
-  });
+  try {
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama-3.1-8b-instant", // ✅ UPDATED MODEL
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-  return response.choices[0].message.content.trim();
+    const question = response.data?.choices?.[0]?.message?.content;
+
+    if (!question) {
+      throw new Error("Groq returned empty response");
+    }
+
+    return question.trim();
+
+  } catch (err) {
+    console.error("❌ Groq API error:");
+    if (err.response) {
+      console.error("Status:", err.response.status);
+      console.error("Data:", err.response.data);
+    } else {
+      console.error(err.message);
+    }
+    throw err;
+  }
 }
 
 module.exports = { generateQuestion };
