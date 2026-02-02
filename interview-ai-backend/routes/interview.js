@@ -1,10 +1,11 @@
 const express = require("express");
 const { generateQuestion } = require("../ai/interviewAI");
+const { evaluateAnswer } = require("../ai/evaluateAnswer"); // 👈 NEW
 
 // ✅ DEFINE ROUTER
 const router = express.Router();
 
-// ================== INTERVIEW QUESTION ==================
+/* ================== ASK INTERVIEW QUESTION ================== */
 router.post("/question", async (req, res) => {
   try {
     const { profile, config } = req.body;
@@ -17,11 +18,40 @@ router.post("/question", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Interview route error:", err.message);
+    console.error("❌ Interview question error:", err.message);
 
     res.status(500).json({
       success: false,
-      error: err.message || "Groq request failed"
+      error: err.message || "Failed to generate question"
+    });
+  }
+});
+
+/* ================== EVALUATE USER ANSWER ================== */
+router.post("/evaluate", async (req, res) => {
+  try {
+    const { question, answer } = req.body;
+
+    if (!question || !answer) {
+      return res.status(400).json({
+        success: false,
+        error: "Question or answer missing"
+      });
+    }
+
+    const evaluation = await evaluateAnswer(question, answer);
+
+    res.json({
+      success: true,
+      evaluation
+    });
+
+  } catch (err) {
+    console.error("❌ Answer evaluation error:", err.message);
+
+    res.status(500).json({
+      success: false,
+      error: err.message || "Failed to evaluate answer"
     });
   }
 });
