@@ -50,7 +50,7 @@ const maxQuestions = 5;
 let interviewLog = [];
 
 /* ================= START INTERVIEW ================= */
-setTimeout(async () => {
+setTimeout(() => {
   const intro = `Hello ${user.name || "Candidate"}.
 This will be a ${interviewConfig.difficulty} ${interviewConfig.interviewType} interview.
 Let us begin.`;
@@ -71,27 +71,26 @@ async function askAIQuestion() {
   try {
     setAIState("thinking");
 
-    const res = await fetch("http://127.0.0.1:5000/interview/question", {
+    const res = await fetch("http://localhost:5000/interview/question", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         profile: {
-          role: interviewConfig.role,
-          skills: interviewConfig.skills,
-          experience: interviewConfig.experience,
-          education: interviewConfig.education
+          role: interviewConfig.role || "Software Developer",
+          skills: interviewConfig.skills || "Programming",
+          experience: interviewConfig.experience || "Fresher",
+          education: interviewConfig.education || "B.Tech"
         },
         config: {
-          interviewType: interviewConfig.interviewType,
-          difficulty: interviewConfig.difficulty
+          interviewType: interviewConfig.interviewType || "Technical",
+          difficulty: interviewConfig.difficulty || "Easy"
         }
       })
     });
 
     const data = await res.json();
-
     if (!res.ok || !data.question) {
-      throw new Error(data.error || "AI returned empty question");
+      throw new Error(data.error || "Failed to get question");
     }
 
     questionCount++;
@@ -101,7 +100,7 @@ async function askAIQuestion() {
     answerText.innerText = "Click Start Answer and speak…";
 
   } catch (err) {
-    console.error("AI question error:", err);
+    console.error("Question error:", err);
     aiText.innerText = err.message;
     setAIState("idle");
   }
@@ -118,32 +117,77 @@ if ("webkitSpeechRecognition" in window) {
   recognition.lang = "en-US";
 
   recognition.onresult = (event) => {
-    let transcript = "";
+    let interim = "";
+
     for (let i = event.resultIndex; i < event.results.length; i++) {
-      transcript += event.results[i][0].transcript;
+      const text = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalAnswer += text + " ";
+      } else {
+        interim += text;
+      }
     }
-    finalAnswer = transcript;
-    answerText.innerText = transcript;
+
+    answerText.innerText = finalAnswer + interim;
   };
+} else {
+  alert("Speech recognition not supported. Use Chrome.");
 }
 
 /* ================= CONTROLS ================= */
 startBtn.onclick = () => {
+  if (!recognition) return;
+
   finalAnswer = "";
   answerText.innerText = "Listening...";
   setAIState("thinking");
   recognition.start();
 };
 
-stopBtn.onclick = () => {
+stopBtn.onclick = async () => {
+  if (!recognition) return;
+
   recognition.stop();
+  setAIState("thinking");
 
-  interviewLog.push({
-    question: aiText.innerText,
-    answer: finalAnswer
-  });
+  if (!finalAnswer.trim()) {
+    answerText.innerText = "No answer detected. Try again.";
+    return;
+  }
 
-  setTimeout(askAIQuestion, 2000);
+  try {
+    // 🔥 SEND ANSWER FOR AI EVALUATION
+    const res = await fetch("http://localhost:5000/interview/evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question: aiText.innerText,
+        answer: finalAnswer
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.evaluation) {
+      throw new Error(data.error || "Evaluation failed");
+    }
+
+    // SHOW FEEDBACK
+    answerText.innerText = "AI Feedback:\n\n" + data.evaluation;
+
+    interviewLog.push({
+      question: aiText.innerText,
+      answer: finalAnswer,
+      feedback: data.evaluation
+    });
+
+    finalAnswer = "";
+    setTimeout(askAIQuestion, 5000);
+
+  } catch (err) {
+    console.error("Evaluation error:", err);
+    answerText.innerText = err.message;
+    setAIState("idle");
+  }
 };
 
 /* ================= END INTERVIEW ================= */
@@ -151,9 +195,12 @@ function endInterview() {
   setAIState("idle");
   speak("Thank you. This concludes your interview.");
 
-  aiText.innerText = "Interview completed.";
+  aiText.innerText = "Interview completed. Preparing report…";
 
-  sessionStorage.setItem("interviewSummary", JSON.stringify(interviewLog));
+  sessionStorage.setItem(
+    "interviewSummary",
+    JSON.stringify(interviewLog)
+  );
 
   setTimeout(() => {
     window.location.href = "../report/report.html";
