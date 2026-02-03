@@ -11,16 +11,18 @@ if (!user || !interviewConfig) {
 /* ================= CAMERA ================= */
 const video = document.getElementById("userVideo");
 
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => video.srcObject = stream)
-  .catch(() => alert("Camera permission required"));
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+  .then(stream => {
+    video.srcObject = stream;
+  })
+  .catch(() => alert("Camera and mic permission required"));
 
 /* ================= UI ELEMENTS ================= */
 const aiText = document.getElementById("aiText");
 const answerText = document.getElementById("answerText");
-const startBtn = document.getElementById("startAnswer");
-const stopBtn = document.getElementById("stopAnswer");
 const aiAvatar = document.getElementById("aiAvatar");
+let isCapturing = false;
+let micActivationPending = false;
 
 /* ================= AI AVATAR STATES ================= */
 function setAIState(state) {
@@ -70,6 +72,7 @@ async function askAIQuestion() {
 
   try {
     setAIState("thinking");
+    const lastEntry = interviewLog[interviewLog.length - 1];
 
     const res = await fetch("http://localhost:5000/interview/question", {
       method: "POST",
@@ -84,7 +87,10 @@ async function askAIQuestion() {
         config: {
           interviewType: interviewConfig.interviewType || "Technical",
           difficulty: interviewConfig.difficulty || "Easy"
-        }
+        },
+        context: lastEntry
+          ? { question: lastEntry.question, answer: lastEntry.answer }
+          : null
       })
     });
 
@@ -97,7 +103,8 @@ async function askAIQuestion() {
     aiText.innerText = data.question;
     speak(data.question);
 
-    answerText.innerText = "Click Start Answer and speak…";
+    answerText.innerText = "Answer when you're ready...";
+    beginAnswerCapture();
 
   } catch (err) {
     console.error("Question error:", err);
@@ -109,10 +116,11 @@ async function askAIQuestion() {
 /* ================= SPEECH TO TEXT ================= */
 let recognition;
 let finalAnswer = "";
+let latestTranscript = "";
 
 if ("webkitSpeechRecognition" in window) {
   recognition = new webkitSpeechRecognition();
-  recognition.continuous = true;
+  recognition.continuous = false;
   recognition.interimResults = true;
   recognition.lang = "en-US";
 
@@ -128,41 +136,92 @@ if ("webkitSpeechRecognition" in window) {
       }
     }
 
-    answerText.innerText = finalAnswer + interim;
+    latestTranscript = (finalAnswer + interim).trim();
+    answerText.innerText = latestTranscript;
+  };
+
+  recognition.onend = () => {
+    if (!isCapturing) return;
+
+    const trimmedAnswer = (finalAnswer.trim() || latestTranscript.trim());
+    if (!trimmedAnswer) {
+      answerText.innerText = "I didn't catch that. Please answer again...";
+      beginAnswerCapture();
+      return;
+    }
+
+    submitAnswer();
+  };
+
+  recognition.onerror = (event) => {
+    isCapturing = false;
+    if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
+      requestMicActivation();
+      return;
+    }
+    answerText.innerText = "Microphone error. Please refresh and allow mic access.";
   };
 } else {
   alert("Speech recognition not supported. Use Chrome.");
 }
 
-/* ================= CONTROLS ================= */
-startBtn.onclick = () => {
+function requestMicActivation() {
+  if (micActivationPending) return;
+  micActivationPending = true;
+  answerText.innerText = "Click anywhere to enable the mic, then answer.";
+  document.addEventListener(
+    "click",
+    () => {
+      micActivationPending = false;
+      beginAnswerCapture();
+    },
+    { once: true }
+  );
+}
+
+function beginAnswerCapture() {
   if (!recognition) return;
 
   finalAnswer = "";
+  latestTranscript = "";
+  isCapturing = true;
   answerText.innerText = "Listening...";
   setAIState("thinking");
-  recognition.start();
-};
+  try {
+    recognition.start();
+  } catch (err) {
+    isCapturing = false;
+    requestMicActivation();
+  }
+}
 
-stopBtn.onclick = async () => {
-  if (!recognition) return;
+async function submitAnswer() {
+  isCapturing = false;
+  const trimmedAnswer = (finalAnswer.trim() || latestTranscript.trim());
+  const isNoAnswer = !trimmedAnswer ||
+    /^(i\s*don'?t\s*know|no\s*idea|not\s*sure|skip|pass)\b/i.test(trimmedAnswer);
 
-  recognition.stop();
-  setAIState("thinking");
+  if (isNoAnswer) {
+    interviewLog.push({
+      question: aiText.innerText,
+      answer: trimmedAnswer || "No answer",
+      feedback: "Skipped"
+    });
 
-  if (!finalAnswer.trim()) {
-    answerText.innerText = "No answer detected. Try again.";
+    answerText.innerText = "No answer detected. Moving to the next question...";
+    finalAnswer = "";
+    setTimeout(askAIQuestion, 2500);
     return;
   }
 
   try {
-    // 🔥 SEND ANSWER FOR AI EVALUATION
+    // SEND ANSWER FOR AI EVALUATION
     const res = await fetch("http://localhost:5000/interview/evaluate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         question: aiText.innerText,
-        answer: finalAnswer
+        answer: trimmedAnswer
       })
     });
 
@@ -176,7 +235,7 @@ stopBtn.onclick = async () => {
 
     interviewLog.push({
       question: aiText.innerText,
-      answer: finalAnswer,
+      answer: trimmedAnswer,
       feedback: data.evaluation
     });
 
@@ -188,19 +247,21 @@ stopBtn.onclick = async () => {
     answerText.innerText = err.message;
     setAIState("idle");
   }
-};
+}
 
 /* ================= END INTERVIEW ================= */
 function endInterview() {
   setAIState("idle");
   speak("Thank you. This concludes your interview.");
 
-  aiText.innerText = "Interview completed. Preparing report…";
+  aiText.innerText = "Interview completed. Preparing report...";
 
-  sessionStorage.setItem(
-    "interviewSummary",
-    JSON.stringify(interviewLog)
-  );
+  const endedAt = new Date().toISOString();
+  sessionStorage.setItem("interviewEndedAt", endedAt);
+  localStorage.setItem("lastInterviewEndedAt", endedAt);
+
+  sessionStorage.setItem("interviewSummary", JSON.stringify(interviewLog));
+  localStorage.setItem("lastInterviewSummary", JSON.stringify(interviewLog));
 
   setTimeout(() => {
     window.location.href = "../report/report.html";
