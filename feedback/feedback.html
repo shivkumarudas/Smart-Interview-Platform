@@ -1,70 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Feedback | InterviewAI</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback | InterviewAI</title>
 
-<link rel="stylesheet" href="css/feedback.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/feedback.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
-<div class="sidebar">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
     <div class="logo">InterviewAI</div>
     <div class="menu">
-        <a href="../dashboard/dashboard.html">🏠 Dashboard</a>
-        <a href="../profile/profile.html">👤 Profile</a>
-        <a href="../interview-selection/interview-selection.html">🎥 Interview</a>
-        <a href="../report/report.html">📊 Report</a>
-        <a class="active" href="#">💬 Feedback</a>
-        <a href="#" onclick="logout()">🚪 Logout</a>
-
+      <a href="../dashboard/dashboard.html">Dashboard</a>
+      <a href="../profile/profile.html">Profile</a>
+      <a href="../interview/interview-setup.html">Interview</a>
+      <a href="../report/report.html">Report</a>
+      <a class="active" href="#">Feedback</a>
+      <a href="#" onclick="logout()">Logout</a>
     </div>
-</div>
+  </div>
 
-<!-- MAIN -->
-<div class="main">
+  <!-- MAIN -->
+  <div class="main">
 
     <div class="header">
-        <h2>Interview Feedback</h2>
+      <h2>Interview Feedback</h2>
     </div>
 
     <div class="content">
-        <div class="card">
-            <h3>We value your feedback 🙌</h3>
-            <p>Help us improve the AI interview experience.</p>
+      <div class="card">
+        <h3>We value your feedback</h3>
+        <p>Help us improve the AI interview experience.</p>
 
-            <form id="feedbackForm">
-                <label>What did you like?</label>
-                <textarea id="positive" placeholder="AI questions, feedback, UI..." required></textarea>
+        <form id="feedbackForm">
+          <label>What did you like?</label>
+          <textarea id="positive" placeholder="AI questions, feedback, UI..." required></textarea>
 
-                <label>What can be improved?</label>
-                <textarea id="improvement" placeholder="Accuracy, speed, UI..." required></textarea>
+          <label>What can be improved?</label>
+          <textarea id="improvement" placeholder="Accuracy, speed, UI..." required></textarea>
 
-                <label>Would you recommend this platform?</label>
-                <select id="recommend" required>
-                    <option value="">Select</option>
-                    <option>Yes</option>
-                    <option>No</option>
-                    <option>Maybe</option>
-                </select>
+          <label>Would you recommend this platform?</label>
+          <select id="recommend" required>
+            <option value="">Select</option>
+            <option>Yes</option>
+            <option>No</option>
+            <option>Maybe</option>
+          </select>
 
-                <button type="submit">Submit Feedback</button>
-            </form>
+          <button type="submit">Submit Feedback</button>
+        </form>
 
-            <div id="statusMsg" class="success" style="display:none;">
-                ✅ Thank you for your feedback!
-            </div>
+        <div id="statusMsg" class="success" style="display:none;">
+          Thank you for your feedback!
         </div>
+      </div>
     </div>
 
-</div>
+  </div>
 
-<script src="js/feedback.js"></script>
-<script src="../js/logout.js"></script>
+  <script src="js/feedback.js"></script>
+  <script src="../js/logout.js"></script>
 
 </body>
 </html>
