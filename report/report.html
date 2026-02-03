@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Interview Report | InterviewAI</title>
+
+  <link rel="stylesheet" href="css/report.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="report-page">
+    <header class="report-header">
+      <div>
+        <p class="eyebrow">InterviewAI</p>
+        <h1>Interview Report</h1>
+        <p class="subtitle">A clear summary of your performance and feedback.</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn ghost" id="printReport">Print</button>
+        <button class="btn primary" id="downloadReport">Download JSON</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-card">
+        <div class="hero-title">
+          <div>
+            <p class="label">Candidate</p>
+            <h2 id="candidateName">Candidate</h2>
+          </div>
+          <div class="badge-row" id="configBadges"></div>
+        </div>
+        <div class="meta-grid">
+          <div>
+            <p class="label">Started</p>
+            <p class="value" id="startedAt">--</p>
+          </div>
+          <div>
+            <p class="label">Ended</p>
+            <p class="value" id="endedAt">--</p>
+          </div>
+          <div>
+            <p class="label">Duration</p>
+            <p class="value" id="duration">--</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <p class="label">Questions</p>
+          <p class="stat" id="totalQuestions">0</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Answered</p>
+          <p class="stat" id="answeredQuestions">0</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Avg Answer Length</p>
+          <p class="stat" id="avgAnswerLength">0 words</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Feedback Entries</p>
+          <p class="stat" id="feedbackCount">0</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h3>Interview Breakdown</h3>
+        <button class="btn ghost" id="startNewInterview">Start New Interview</button>
+      </div>
+      <div class="qa-list" id="qaList"></div>
+      <div class="empty-state" id="emptyState">
+        <p>No interview data found. Start a new interview to generate a report.</p>
+        <a class="btn primary" href="../interview/interview-setup.html">Go to Interview Setup</a>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/report.js"></script>
+</body>
+</html>
