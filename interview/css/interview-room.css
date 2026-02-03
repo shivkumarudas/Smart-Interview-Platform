@@ -165,6 +165,12 @@ body {
   font-size: 14px;
 }
 
+.answer-controls button:disabled,
+.controls button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 #startAnswer {
   background: #22c55e;
   color: #022c22;
