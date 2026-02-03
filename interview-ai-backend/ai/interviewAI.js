@@ -5,7 +5,7 @@ if (!GROQ_API_KEY) {
   throw new Error("❌ GROQ_API_KEY missing");
 }
 
-async function generateQuestion(profile = {}, config = {}) {
+async function generateQuestion(profile = {}, config = {}, context = null) {
   const role = profile.role || "Software Developer";
   const skills = profile.skills || "Programming, Problem Solving";
   const experience = profile.experience || "Fresher";
@@ -13,6 +13,15 @@ async function generateQuestion(profile = {}, config = {}) {
 
   const interviewType = config.interviewType || "Technical";
   const difficulty = config.difficulty || "Easy";
+
+  const contextBlock = context?.question && context?.answer
+    ? `
+Previous question: ${context.question}
+Candidate answer: ${context.answer}
+
+Ask the next interview question based on the candidate's answer.
+`
+    : "";
 
   const prompt = `
 You are a professional HR interviewer.
@@ -25,6 +34,7 @@ Education: ${education}
 Interview type: ${interviewType}
 Difficulty: ${difficulty}
 
+${contextBlock}
 Ask ONE clear interview question only.
 Do not add explanations.
 `;
