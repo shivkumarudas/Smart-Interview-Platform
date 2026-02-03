@@ -8,9 +8,9 @@ const router = express.Router();
 /* ================== ASK INTERVIEW QUESTION ================== */
 router.post("/question", async (req, res) => {
   try {
-    const { profile, config } = req.body;
+    const { profile, config, context } = req.body;
 
-    const question = await generateQuestion(profile, config);
+    const question = await generateQuestion(profile, config, context);
 
     res.json({
       success: true,
