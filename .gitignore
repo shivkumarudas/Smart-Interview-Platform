@@ -1,0 +1,7 @@
+node_modules/
+interview-ai-backend/node_modules/
+.env
+interview-ai-backend/.env
+.DS_Store
+Thumbs.db
+.vscode/
