@@ -1,11 +1,11 @@
 const axios = require("axios");
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-if (!GROQ_API_KEY) {
-  throw new Error("❌ GROQ_API_KEY missing");
-}
-
 async function generateQuestion(profile = {}, config = {}, context = null) {
+  const groqApiKey = process.env.GROQ_API_KEY;
+  if (!groqApiKey) {
+    throw new Error("GROQ_API_KEY is not set");
+  }
+
   const role = profile.role || "Software Developer";
   const skills = profile.skills || "Programming, Problem Solving";
   const experience = profile.experience || "Fresher";
@@ -43,15 +43,16 @@ Do not add explanations.
     const response = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: "llama-3.1-8b-instant", // ✅ UPDATED MODEL
+        model: "llama-3.1-8b-instant",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7
       },
       {
         headers: {
-          Authorization: `Bearer ${GROQ_API_KEY}`,
+          Authorization: `Bearer ${groqApiKey}`,
           "Content-Type": "application/json"
-        }
+        },
+        timeout: 10000
       }
     );
 
@@ -62,9 +63,8 @@ Do not add explanations.
     }
 
     return question.trim();
-
   } catch (err) {
-    console.error("❌ Groq API error:");
+    console.error("Groq API error:");
     if (err.response) {
       console.error("Status:", err.response.status);
       console.error("Data:", err.response.data);
