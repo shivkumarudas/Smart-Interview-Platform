@@ -1,8 +1,7 @@
 const express = require("express");
 const { generateQuestion } = require("../ai/interviewAI");
-const { evaluateAnswer } = require("../ai/evaluateAnswer"); // 👈 NEW
+const { evaluateAnswer } = require("../ai/evaluateAnswer");
 
-// ✅ DEFINE ROUTER
 const router = express.Router();
 
 /* ================== ASK INTERVIEW QUESTION ================== */
@@ -16,9 +15,8 @@ router.post("/question", async (req, res) => {
       success: true,
       question
     });
-
   } catch (err) {
-    console.error("❌ Interview question error:", err.message);
+    console.error("Interview question error:", err.message);
 
     res.status(500).json({
       success: false,
@@ -45,9 +43,8 @@ router.post("/evaluate", async (req, res) => {
       success: true,
       evaluation
     });
-
   } catch (err) {
-    console.error("❌ Answer evaluation error:", err.message);
+    console.error("Answer evaluation error:", err.message);
 
     res.status(500).json({
       success: false,
