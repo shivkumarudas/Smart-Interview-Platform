@@ -1,8 +1,11 @@
 const axios = require("axios");
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-
 async function evaluateAnswer(question, answer) {
+  const groqApiKey = process.env.GROQ_API_KEY;
+  if (!groqApiKey) {
+    throw new Error("GROQ_API_KEY is not set");
+  }
+
   const prompt = `
 You are an interview evaluator.
 
@@ -28,13 +31,19 @@ Evaluate the answer and respond in JSON with:
     },
     {
       headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
+        Authorization: `Bearer ${groqApiKey}`,
         "Content-Type": "application/json"
-      }
+      },
+      timeout: 10000
     }
   );
 
-  return res.data.choices[0].message.content;
+  const content = res.data?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error("Groq returned empty response");
+  }
+
+  return content.trim();
 }
 
 module.exports = { evaluateAnswer };
