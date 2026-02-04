@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       statusMsg.style.display = "block";
-      statusMsg.innerText = "✅ Thank you for your feedback!";
+      statusMsg.innerText = "Thank you for your feedback!";
       form.reset();
 
       setTimeout(() => {
