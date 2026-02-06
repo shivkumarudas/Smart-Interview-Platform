@@ -1,15 +1,38 @@
-const user = JSON.parse(localStorage.getItem("user"));
-if (!user) {
-  window.location.href = "../auth/login.html";
+function safeParseJson(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
+function getCurrentUser() {
+  return safeParseJson(localStorage.getItem("user"));
+}
 
+function requireAuth(redirectPath = "../auth/login.html") {
+  const user = getCurrentUser();
+  if (!user || !user.id) {
+    window.location.href = redirectPath;
+    return null;
+  }
+  return user;
+}
 
 function logout() {
-  // remove user session
   localStorage.removeItem("user");
   localStorage.removeItem("interviewConfig");
+  localStorage.removeItem("lastInterviewSummary");
+  localStorage.removeItem("lastInterviewEndedAt");
 
-  // redirect to landing page
+  sessionStorage.removeItem("interviewSummary");
+  sessionStorage.removeItem("interviewEndedAt");
+
   window.location.href = "../index.html";
 }
+
+window.InterviewAI = window.InterviewAI || {};
+window.InterviewAI.getCurrentUser = getCurrentUser;
+window.InterviewAI.requireAuth = requireAuth;
+window.logout = logout;
