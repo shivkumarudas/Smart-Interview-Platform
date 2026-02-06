@@ -1,183 +1,156 @@
+// Load environment variables first.
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const bcrypt = require("bcryptjs");
 
-const Profile = require("./models/profile");
-const User = require("./models/User");
-const Feedback = require("./models/Feedback");
+// ================== APP ==================
 const app = express();
 
-// ================== MIDDLEWARE ==================
-app.use(cors());
-app.use(express.json()); // MUST be before routes
+function isTruthy(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return ["1", "true", "yes", "y", "on"].includes(normalized);
+}
 
-// Disable buffering (good practice)
+// ================== MIDDLEWARE ==================
+app.disable("x-powered-by");
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim())
+  : "*";
+app.use(cors({ origin: corsOrigin }));
+app.use(express.json({ limit: "1mb" }));
+
+// Disable mongoose buffering
 mongoose.set("bufferCommands", false);
 
+// ================== ROUTES ==================
+const authRoutes = require("./routes/auth");
+const interviewRoutes = require("./routes/interview");
+
+// ================== MODELS ==================
+const Profile = require("./models/profile");
+const Feedback = require("./models/Feedback");
+
 // ================== DB ==================
-const MONGO_URI =
-  "mongodb+srv://testuser:Test12345@cluster0..mongodb.net/interviewAI?retryWrites=true&w=majority";
+const MONGO_URI = process.env.MONGO_URI;
+const REQUIRE_DB =
+  isTruthy(process.env.REQUIRE_DB) ||
+  String(process.env.NODE_ENV || "").toLowerCase() === "production";
+
+// ================== PORT ==================
+const PORT = Number(process.env.PORT) || 5000;
+
+function dbRequired(req, res, next) {
+  if (mongoose.connection.readyState === 1) {
+    return next();
+  }
+  return res.status(503).json({
+    error:
+      "Database not connected. Set MONGO_URI in interview-ai-backend/.env and restart the server."
+  });
+}
+
+async function connectToMongoIfConfigured() {
+  if (!MONGO_URI) {
+    const message =
+      "MONGO_URI is not set. Add it to interview-ai-backend/.env (see interview-ai-backend/.env.example).";
+    if (REQUIRE_DB) {
+      throw new Error(message);
+    }
+    console.warn(message);
+    return false;
+  }
+
+  try {
+    console.log("Connecting to MongoDB...");
+    await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+    console.log("MongoDB connected");
+    return true;
+  } catch (err) {
+    console.error("MongoDB connection failed:", err.message);
+    if (REQUIRE_DB) {
+      throw err;
+    }
+    return false;
+  }
+}
 
 // ================== START SERVER ==================
 async function startServer() {
   try {
-    await mongoose.connect(MONGO_URI);
-    console.log("✅ MongoDB Connected (ready)");
-
-    // ================== TEST ==================
+    // ================== HEALTH CHECK ==================
     app.get("/ping", (req, res) => {
       res.send("pong");
     });
-    
-    // ================== SIGNUP ==================
-    app.post("/signup", async (req, res) => {
+
+    // ================== INTERVIEW ==================
+    // Interview routes do not require MongoDB.
+    app.use("/interview", interviewRoutes);
+
+    await connectToMongoIfConfigured();
+
+    // ================== AUTH ==================
+    app.use("/", dbRequired, authRoutes);
+
+    // ================== PROFILE ==================
+    app.post("/profile", dbRequired, async (req, res) => {
       try {
-        const { email, password } = req.body;
+        const { userId, ...data } = req.body;
 
-        if (!email || !password) {
-          return res.status(400).json({ error: "Missing fields" });
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+          return res.status(400).json({ error: "Invalid userId" });
         }
 
-        const exists = await User.findOne({ email });
-        if (exists) {
-          return res.status(400).json({ error: "Email already exists" });
-        }
+        await Profile.findOneAndUpdate(
+          { userId },
+          { userId, ...data },
+          { upsert: true, new: true, runValidators: true }
+        );
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const user = new User({
-          email,
-          password: hashedPassword
-        });
-
-        await user.save();
-        res.json({ message: "Signup successful" });
-
+        res.json({ message: "Profile saved" });
       } catch (err) {
         res.status(500).json({ error: err.message });
       }
     });
 
-    // ================== LOGIN ==================
-    app.post("/login", async (req, res) => {
-      try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-          return res.status(400).json({ error: "Missing fields" });
-        }
-
-        const user = await User.findOne({ email });
-        if (!user) {
-          return res.status(400).json({ error: "Invalid email or password" });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-          return res.status(400).json({ error: "Invalid email or password" });
-        }
-
-        res.json({
-          message: "Login successful",
-          user: {
-            id: user._id.toString(), // 🔥 ENSURE STRING
-            name: user.name,
-            email: user.email
-          }
-        });
-
-      } catch (err) {
-        res.status(500).json({ error: err.message });
+    app.get("/profile/:userId", dbRequired, async (req, res) => {
+      const { userId } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({ error: "Invalid userId" });
       }
+      const profile = await Profile.findOne({ userId });
+      res.json(profile || null);
     });
-
-    // ================== CREATE / UPDATE PROFILE ==================
-    app.post("/profile", async (req, res) => {
-      try {
-        const { userId, ...profileData } = req.body;
-
-        if (!userId) {
-          return res.status(400).json({ error: "User ID missing" });
-        }
-
-        const existingProfile = await Profile.findOne({ userId });
-
-        if (existingProfile) {
-          await Profile.findOneAndUpdate(
-            { userId },
-            profileData,
-            { new: true }
-          );
-          return res.json({ message: "Profile updated" });
-        }
-
-        const profile = new Profile({
-          userId,
-          ...profileData
-        });
-
-        await profile.save();
-        res.json({ message: "Profile created" });
-
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
-    });
-
-    // ================== GET PROFILE ==================
-    app.get("/profile/:userId", async (req, res) => {
-      try {
-        const profile = await Profile.findOne({ userId: req.params.userId });
-        if (!profile) return res.json(null);
-        res.json(profile);
-      } catch (err) {
-        res.status(500).json({ error: err.message });
-      }
-    });
-
-
 
     // ================== FEEDBACK ==================
+    app.post("/feedback", dbRequired, async (req, res) => {
+      try {
+        const { userId, positive, improvement, recommend } = req.body;
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+          return res.status(400).json({ error: "Invalid userId" });
+        }
+        if (!positive || !improvement || !recommend) {
+          return res.status(400).json({ error: "Missing fields" });
+        }
 
-    app.post("/feedback", async (req, res) => {
-  try {
-    console.log("REQ BODY /feedback →", req.body);
-
-    const { userId, positive, improvement, recommend } = req.body;
-
-    if (!userId || !positive || !improvement || !recommend) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const feedback = new Feedback({
-      userId,
-      positive,
-      improvement,
-      recommend
+        const feedback = new Feedback(req.body);
+        await feedback.save();
+        res.json({ message: "Thank you for your feedback" });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
     });
-
-    await feedback.save();
-
-    res.json({ message: "Thank you for your feedback" });
-
-  } catch (err) {
-    console.error("Feedback error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-
-
 
     // ================== LISTEN ==================
-    app.listen(5000, () => {
-      console.log("🚀 Server running on port 5000");
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running at http://localhost:${PORT}`);
+      console.log(`Test: http://localhost:${PORT}/ping`);
     });
-
   } catch (err) {
-    console.error("❌ MongoDB connection failed:", err);
+    console.error("Startup failed:", err);
     process.exit(1);
   }
 }

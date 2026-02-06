@@ -7,13 +7,14 @@ document.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
+    const name = document.getElementById("name").value.trim();
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
     const confirmPassword = document.getElementById("confirmPassword").value;
 
     errorMsg.innerText = "";
 
-    if (!email || !password) {
+    if (!name || !email || !password) {
       errorMsg.innerText = "All fields required";
       return;
     }
@@ -30,6 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
           "Content-Type": "application/json"   // 🔥 THIS IS CRITICAL
         },
         body: JSON.stringify({
+          name,
           email,
           password
         })

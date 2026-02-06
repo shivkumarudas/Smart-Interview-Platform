@@ -1,7 +1,7 @@
 console.log("dashboard.js loaded");
 
 /* ================= USER CHECK ================= */
-const user = JSON.parse(localStorage.getItem("user"));
+const user = JSON.parse(localStorage.getItem("user") || "null");
 if (!user || !user.id) {
   window.location.href = "../auth/login.html";
 }
@@ -68,12 +68,9 @@ async function loadDashboard() {
 loadDashboard();
 
 /* ================= START INTERVIEW ================= */
-document.getElementById("startInterviewBtn").addEventListener("click", () => {
-  window.location.href = "../interview/interview.html";
-});
-
-/* ================= LOGOUT ================= */
-function logout() {
-  localStorage.removeItem("user");
-  window.location.href = "../index.html";
+const startInterviewBtn = document.getElementById("startInterviewBtn");
+if (startInterviewBtn) {
+  startInterviewBtn.addEventListener("click", () => {
+    window.location.href = "../interview/interview-setup.html";
+  });
 }
