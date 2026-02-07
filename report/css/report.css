@@ -87,6 +87,21 @@ a {
   border: 1px solid var(--border);
 }
 
+.session-select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  min-width: 220px;
+}
+
+.session-select:disabled {
+  opacity: 0.6;
+}
+
 .hero {
   display: grid;
   grid-template-columns: 2fr 1.2fr;
