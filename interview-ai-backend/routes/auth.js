@@ -1,8 +1,20 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
 const User = require("../models/user");
 
 const router = express.Router();
+
+function dbRequired(req, res, next) {
+  if (mongoose.connection.readyState === 1) {
+    return next();
+  }
+
+  return res.status(503).json({
+    error:
+      "Database not connected. Set MONGO_URI in interview-ai-backend/.env and restart the server."
+  });
+}
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
@@ -13,7 +25,7 @@ function isValidEmail(email) {
 }
 
 /* SIGNUP */
-router.post("/signup", async (req, res) => {
+router.post("/signup", dbRequired, async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const normalizedEmail = normalizeEmail(email);
@@ -46,12 +58,15 @@ router.post("/signup", async (req, res) => {
     await user.save();
     res.json({ message: "Signup successful" });
   } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({ error: "Email already exists" });
+    }
     res.status(500).json({ error: err.message });
   }
 });
 
 /* LOGIN */
-router.post("/login", async (req, res) => {
+router.post("/login", dbRequired, async (req, res) => {
   try {
     const { email, password } = req.body;
     const normalizedEmail = normalizeEmail(email);

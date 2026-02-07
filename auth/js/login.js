@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/login", {
+      const res = await window.InterviewAI.api.fetch("/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -26,10 +26,10 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ email, password })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        errorMsg.innerText = data.error;
+        errorMsg.innerText = data.error || "Login failed";
         return;
       }
 

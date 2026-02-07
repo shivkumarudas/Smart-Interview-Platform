@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/signup", {
+      const res = await window.InterviewAI.api.fetch("/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"   // 🔥 THIS IS CRITICAL
@@ -37,10 +37,10 @@ document.addEventListener("DOMContentLoaded", () => {
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        errorMsg.innerText = data.error;
+        errorMsg.innerText = data.error || "Signup failed";
         return;
       }
 

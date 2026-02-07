@@ -8,16 +8,23 @@ if (!user || !user.id) {
 
 /* ================= WELCOME ================= */
 document.getElementById("welcomeText").innerText =
-  `Welcome, ${user.name} 👋`;
+  `Welcome, ${user.name || user.email || "Candidate"}`;
 
 /* ================= FETCH PROFILE ================= */
 async function loadDashboard() {
   try {
-    const res = await fetch(`http://127.0.0.1:5000/profile/${user.id}`);
-    const profile = await res.json();
+    const res = await window.InterviewAI.api.fetch(`/profile/${user.id}`);
+    const profile = await res.json().catch(() => null);
 
     const statusEl = document.getElementById("profileStatus");
     const startBtn = document.getElementById("startInterviewBtn");
+
+    if (!res.ok) {
+      statusEl.innerText = profile?.error || "Unable to load profile";
+      statusEl.style.color = "red";
+      startBtn.disabled = true;
+      return;
+    }
 
     if (!profile) {
       statusEl.innerText = "❌ Profile Incomplete";
