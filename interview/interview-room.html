@@ -19,7 +19,7 @@
   <!-- HEADER -->
   <header class="header">
     <h2>Live AI Interview</h2>
-    <span class="status">Recording</span>
+    <span class="status" id="progressText">Ready</span>
   </header>
 
   <!-- MAIN INTERVIEW AREA -->
@@ -63,11 +63,26 @@
       Click Start Answer and speak...
     </div>
 
+    <div class="coach-tip" id="coachTip"></div>
+
+    <div class="answer-controls">
+      <button id="startAnswer" type="button">Start Answer</button>
+      <button id="stopAnswer" type="button" disabled>Stop</button>
+    </div>
+
+    <textarea id="typedAnswer" class="typed-answer" rows="4" placeholder="Or type your answer here (optional)"></textarea>
+    <button id="submitTyped" class="typed-btn" type="button">Submit Typed Answer</button>
+
+    <div class="mic-meter" aria-label="Microphone level">
+      <div id="micLevel" class="mic-level"></div>
+    </div>
   </div>
 
   <!-- FOOTER CONTROLS -->
   <div class="controls">
-    <button class="end-btn" onclick="endInterview()">End Interview</button>
+    <button class="mic-btn" id="repeatQuestion" type="button">Repeat</button>
+    <button class="mic-btn" id="skipQuestion" type="button">Skip</button>
+    <button class="end-btn" id="endInterviewBtn" type="button">End Interview</button>
   </div>
 
 </div>
