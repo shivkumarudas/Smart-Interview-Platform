@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ================= LOAD PROFILE ================= */
   async function loadProfile() {
     try {
-      const res = await fetch(`http://127.0.0.1:5000/profile/${user.id}`);
+      const res = await window.InterviewAI.api.fetch(`/profile/${user.id}`);
 
       if (!res.ok) {
         console.error("Profile fetch failed", res.status);
@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/profile", {
+      const res = await window.InterviewAI.api.fetch("/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileData)
