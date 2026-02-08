@@ -11,23 +11,20 @@
 
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
   <div class="logo">InterviewAI</div>
   <div class="menu">
-    <a href="../dashboard/dashboard.html">🏠 Dashboard</a>
-    <a href="#" class="active">👤 User Profile</a>
-    <a href="../interview/interview-setup.html">🎥 Start Interview</a>
-    <a href="../report/report.html">📊 Reports</a>
-    <a href="../feedback/feedback.html">💬 Feedback</a>
-    <a href="#" onclick="logout()">🚪 Logout</a>
+    <a href="../dashboard/dashboard.html">Dashboard</a>
+    <a href="#" class="active">User Profile</a>
+    <a href="../interview/interview-setup.html">Start Interview</a>
+    <a href="../practice/practice.html">Practice Hub</a>
+    <a href="../report/report.html">Reports</a>
+    <a href="../feedback/feedback.html">Feedback</a>
+    <a href="#" onclick="logout()">Logout</a>
   </div>
 </div>
 
-<!-- MAIN FORM -->
 <form id="profileForm">
-
-  <!-- BASIC INFO -->
   <div class="form-group">
     <label>Full Name *</label>
     <input type="text" id="name" required>
@@ -48,7 +45,6 @@
     <input type="text" id="location" placeholder="City, State" required>
   </div>
 
-  <!-- EDUCATION -->
   <div class="form-group">
     <label>Highest Qualification *</label>
     <select id="education" required>
@@ -62,7 +58,6 @@
     </select>
   </div>
 
-  <!-- EXPERIENCE -->
   <div class="form-group">
     <label>Total Experience (Years) *</label>
     <input type="number" id="experienceYears" min="0" max="40" required>
@@ -73,13 +68,12 @@
     <select id="experience" required>
       <option value="">Select</option>
       <option>Fresher</option>
-      <option>0–1 Years</option>
-      <option>1–3 Years</option>
+      <option>0-1 Years</option>
+      <option>1-3 Years</option>
       <option>3+ Years</option>
     </select>
   </div>
 
-  <!-- ROLE & SKILLS -->
   <div class="form-group">
     <label>Target Role *</label>
     <select id="role" required>
@@ -97,7 +91,6 @@
     <input type="text" id="skills" placeholder="HTML, CSS, JavaScript, React" required>
   </div>
 
-  <!-- LINKS -->
   <div class="form-group">
     <label>LinkedIn Profile URL *</label>
     <input type="url" id="linkedin" placeholder="https://linkedin.com/in/username" required>
@@ -108,7 +101,6 @@
     <input type="url" id="portfolio" placeholder="https://github.com/username">
   </div>
 
-  <!-- INTERVIEW PREFERENCES -->
   <div class="form-group">
     <label>Preferred Interview Type *</label>
     <select id="interviewType" required>
@@ -140,22 +132,17 @@
     </select>
   </div>
 
-  <!-- ACTION BUTTONS -->
   <button class="save-btn" id="saveBtn" type="submit">Save Profile</button>
-  <button class="save-btn" id="editBtn" type="button" style="display:none;">
-    Edit Profile
-  </button>
+  <button class="save-btn" id="editBtn" type="button" style="display:none;">Edit Profile</button>
 
   <div class="status" id="statusMsg" style="display:none;">
-    Profile Completed ✅
+    Profile Completed
   </div>
-
 </form>
 
 <script src="../js/api.js"></script>
 <script src="js/profile.js"></script>
 <script src="../js/logout.js"></script>
-
 
 </body>
 </html>
