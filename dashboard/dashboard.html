@@ -16,12 +16,13 @@
   <div class="logo">InterviewAI</div>
 
   <div class="menu">
-    <a href="dashboard.html" class="active">🏠 Dashboard</a>
-    <a href="../profile/profile.html">👤 User Profile</a>
-    <a href="../interview/interview-setup.html">🎥 Start Interview</a>
-    <a href="../report/report.html">📊 Reports</a>
-    <a href="../feedback/feedback.html">💬 Feedback</a>
-    <a href="#" onclick="logout()">🚪 Logout</a>
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="../profile/profile.html">User Profile</a>
+    <a href="../interview/interview-setup.html">Start Interview</a>
+    <a href="../practice/practice.html">Practice Hub</a>
+    <a href="../report/report.html">Reports</a>
+    <a href="../feedback/feedback.html">Feedback</a>
+    <a href="#" onclick="logout()">Logout</a>
   </div>
 </div>
 
@@ -33,7 +34,7 @@
   </div>
 
   <div class="content">
-    <div class="welcome" id="welcomeText">Welcome 👋</div>
+    <div class="welcome" id="welcomeText">Welcome</div>
 
     <div class="cards">
 
@@ -53,7 +54,7 @@
       <div class="card">
         <h3>Skills Snapshot</h3>
         <div class="skills" id="skillsBox">
-          <span class="skill">—</span>
+          <span class="skill">-</span>
         </div>
       </div>
 
@@ -68,15 +69,25 @@
         <button class="start-btn" id="startInterviewBtn" type="button">
           Start Interview
         </button>
+      </div>
 
+      <div class="card">
+        <h3>Weekly Goal</h3>
+        <div class="progress-bar">
+          <div class="progress-fill" id="weeklyGoalFill"></div>
+        </div>
+        <p id="weeklyGoalText">Loading goal progress...</p>
+        <button class="start-btn" id="openPracticeHub" type="button">
+          Open Practice Hub
+        </button>
       </div>
 
       <div class="card highlight">
         <h3>AI Suggestions</h3>
         <ul>
-          <li>📌 Improve technical skills</li>
-          <li>🎯 Practice mock interviews</li>
-          <li>🧠 Review feedback reports</li>
+          <li>Improve technical skills depth</li>
+          <li>Practice mock interviews consistently</li>
+          <li>Review feedback reports weekly</li>
         </ul>
       </div>
 
@@ -85,6 +96,7 @@
 </div>
 
 <script src="../js/api.js"></script>
+<script src="../js/practice-utils.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="../js/logout.js"></script>
 
