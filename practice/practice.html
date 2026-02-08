@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practice Hub | InterviewAI</title>
+
+  <link rel="stylesheet" href="css/practice.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">InterviewAI</div>
+    <div class="menu">
+      <a href="../dashboard/dashboard.html">Dashboard</a>
+      <a href="../profile/profile.html">Profile</a>
+      <a href="../interview/interview-setup.html">Start Interview</a>
+      <a class="active" href="#">Practice Hub</a>
+      <a href="../report/report.html">Reports</a>
+      <a href="../feedback/feedback.html">Feedback</a>
+      <a href="#" onclick="logout()">Logout</a>
+    </div>
+  </div>
+
+  <main class="main">
+    <header class="header">
+      <div>
+        <h1>Practice Hub</h1>
+        <p>Track weekly goals, reuse interview templates, and improve consistency.</p>
+      </div>
+      <div class="header-actions">
+        <a class="btn ghost" href="../report/report.html">Open Reports</a>
+        <a class="btn primary" href="../interview/interview-setup.html">Start Interview</a>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Weekly Goals</h2>
+        <form id="goalForm" class="goal-form">
+          <label for="weeklyInterviews">Interviews per week</label>
+          <input id="weeklyInterviews" min="1" max="20" type="number" required>
+
+          <label for="weeklyQuestions">Questions per week</label>
+          <input id="weeklyQuestions" min="5" max="200" type="number" required>
+
+          <button class="btn primary" type="submit">Save Goals</button>
+        </form>
+        <p id="goalStatus" class="helper"></p>
+      </article>
+
+      <article class="card">
+        <h2>This Week</h2>
+        <div class="metric">
+          <div class="metric-title">
+            <span>Interviews</span>
+            <strong id="interviewGoalText">0/0</strong>
+          </div>
+          <div class="progress-track">
+            <div id="interviewGoalBar" class="progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-title">
+            <span>Questions</span>
+            <strong id="questionGoalText">0/0</strong>
+          </div>
+          <div class="progress-track">
+            <div id="questionGoalBar" class="progress-fill secondary"></div>
+          </div>
+        </div>
+
+        <div class="quick-stats">
+          <div>
+            <p class="label">Current streak</p>
+            <p class="value" id="streakText">0 days</p>
+          </div>
+          <div>
+            <p class="label">Week range</p>
+            <p class="value" id="weekRangeText">--</p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <h2>Interview Templates</h2>
+        <p>Save repeatable configurations for faster mock interviews.</p>
+      </div>
+
+      <form id="templateForm" class="template-form">
+        <input id="templateId" type="hidden">
+
+        <label for="templateName">Template name</label>
+        <input id="templateName" placeholder="Example: Backend Rapid Drill" type="text" required>
+
+        <div class="template-grid">
+          <div>
+            <label for="templateType">Interview type</label>
+            <select id="templateType" required>
+              <option value="">Select</option>
+              <option>Technical</option>
+              <option>HR</option>
+              <option>Behavioral</option>
+              <option>Mixed</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="templateDifficulty">Difficulty</label>
+            <select id="templateDifficulty" required>
+              <option value="">Select</option>
+              <option>Easy</option>
+              <option>Medium</option>
+              <option>Hard</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="templateDuration">Duration</label>
+            <select id="templateDuration" required>
+              <option value="10">10 Minutes</option>
+              <option value="15">15 Minutes</option>
+              <option value="20">20 Minutes</option>
+              <option value="30">30 Minutes</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="templateNotes">Notes (optional)</label>
+        <textarea id="templateNotes" placeholder="Focus on API design and database tradeoffs..." rows="3"></textarea>
+
+        <div class="template-actions">
+          <button id="saveTemplateBtn" class="btn primary" type="submit">Save Template</button>
+          <button id="resetTemplateBtn" class="btn ghost" type="button">Clear</button>
+        </div>
+      </form>
+
+      <div id="templateList" class="template-list"></div>
+      <p id="templateEmpty" class="empty-state">No templates yet. Save your first template above.</p>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <h2>Recent Activity</h2>
+        <p>Combined view of saved sessions and local interview history.</p>
+      </div>
+
+      <div id="activityList" class="activity-list"></div>
+      <p id="activityEmpty" class="empty-state">No activity yet. Start an interview to build momentum.</p>
+    </section>
+  </main>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/practice-utils.js"></script>
+  <script src="js/practice.js"></script>
+  <script src="../js/logout.js"></script>
+</body>
+</html>
