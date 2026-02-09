@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { generateQuestion } = require("../ai/interviewAI");
 const { evaluateAnswer } = require("../ai/evaluateAnswer");
+const { synthesizeSpeech } = require("../ai/textToSpeech");
 const InterviewSession = require("../models/InterviewSession");
 
 const router = express.Router();
@@ -283,6 +284,72 @@ router.post("/evaluate", async (req, res) => {
     res.status(500).json({
       success: false,
       error: err.message || "Failed to evaluate answer"
+    });
+  }
+});
+
+/* ================== TTS (HUMAN-LIKE AI VOICE) ================== */
+router.post("/tts", async (req, res) => {
+  try {
+    const {
+      text,
+      voice,
+      speed,
+      language,
+      style,
+      responseFormat
+    } = req.body || {};
+
+    const cleanText = String(text || "").trim();
+    if (!cleanText) {
+      return res.status(400).json({
+        success: false,
+        error: "Text is required"
+      });
+    }
+
+    if (cleanText.length > 1200) {
+      return res.status(400).json({
+        success: false,
+        error: "Text is too long for TTS. Keep it under 1200 characters."
+      });
+    }
+
+    const result = await synthesizeSpeech({
+      text: cleanText,
+      voice,
+      speed,
+      language,
+      style,
+      responseFormat
+    });
+
+    res.setHeader("Content-Type", result.contentType);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-TTS-Model", result.model);
+    res.setHeader("X-TTS-Voice", result.voice);
+
+    return res.send(result.audioBuffer);
+  } catch (err) {
+    if (err?.code === "OPENAI_API_KEY_MISSING") {
+      return res.status(503).json({
+        success: false,
+        error: "Neural voice unavailable. Set OPENAI_API_KEY in interview-ai-backend/.env."
+      });
+    }
+
+    const providerStatus = Number(err?.status) || 0;
+    if (providerStatus === 401 || providerStatus === 403) {
+      return res.status(503).json({
+        success: false,
+        error: "Neural voice unavailable. Check OPENAI_API_KEY in interview-ai-backend/.env."
+      });
+    }
+
+    console.error("TTS error", providerStatus ? `(provider status ${providerStatus})` : "");
+    return res.status(500).json({
+      success: false,
+      error: "Failed to generate speech"
     });
   }
 });
