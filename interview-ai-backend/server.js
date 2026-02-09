@@ -69,6 +69,7 @@ function registerFrontend(appInstance) {
     "feedback",
     "interview",
     "js",
+    "practice",
     "profile",
     "report"
   ];
