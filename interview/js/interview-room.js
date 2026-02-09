@@ -44,6 +44,11 @@ const endInterviewBtn = document.getElementById("endInterviewBtn");
 let isCapturing = false;
 let micActivationPending = false;
 let shouldSubmitOnEnd = false;
+let aiAudioEl = null;
+let aiAudioObjectUrl = "";
+let aiSpeechFetchController = null;
+let neuralVoiceAttemptEnabled = true;
+let candidateSpeechLocale = "en-US";
 
 /* ================= AI AVATAR STATES ================= */
 function setAIState(state) {
@@ -132,8 +137,167 @@ async function ensureAudioContextRunning() {
 }
 
 /* ================= AI SPEECH ================= */
-function speak(text, onEnd) {
+function getSpeechLocaleFromProfileLanguage(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "en-US";
+
+  const hasEnglish = normalized.includes("english");
+  const hasHindi = normalized.includes("hindi");
+
+  if (hasHindi && !hasEnglish) return "hi-IN";
+  if (hasHindi && hasEnglish) return "en-IN";
+  if (hasEnglish) return "en-US";
+  return "en-US";
+}
+
+function getSpeechLanguageLabel(locale) {
+  const normalized = String(locale || "").toLowerCase();
+  if (normalized.startsWith("hi")) return "Hindi";
+  if (normalized.startsWith("en-in")) return "Indian English";
+  return "English";
+}
+
+function getInterviewerVoiceStyle() {
+  const interviewType = String(
+    interviewConfig?.interviewType || candidateProfile?.interviewType || "technical"
+  )
+    .trim()
+    .toLowerCase();
+
+  if (interviewType === "hr") {
+    return "Sound warm and conversational, like an experienced HR interviewer.";
+  }
+  if (interviewType === "behavioral") {
+    return "Sound empathetic and attentive, with natural pauses and clear articulation.";
+  }
+  if (interviewType === "mixed") {
+    return "Sound professional and friendly, balancing clarity with a natural interview rhythm.";
+  }
+  return "Sound like a senior technical interviewer: confident, clear, and natural.";
+}
+
+function cleanupNeuralAudio() {
+  if (aiAudioEl) {
+    aiAudioEl.onended = null;
+    aiAudioEl.onerror = null;
+  }
+  aiAudioEl = null;
+
+  if (aiAudioObjectUrl) {
+    try {
+      URL.revokeObjectURL(aiAudioObjectUrl);
+    } catch {
+      // ignore
+    }
+  }
+  aiAudioObjectUrl = "";
+}
+
+function stopAISpeechOutput() {
+  if (aiSpeechFetchController) {
+    try {
+      aiSpeechFetchController.abort();
+    } catch {
+      // ignore
+    }
+  }
+  aiSpeechFetchController = null;
+
+  if (aiAudioEl) {
+    try {
+      aiAudioEl.pause();
+      aiAudioEl.currentTime = 0;
+    } catch {
+      // ignore
+    }
+  }
+
+  cleanupNeuralAudio();
   speechSynthesis.cancel();
+}
+
+function pickBrowserVoice(locale) {
+  const voices = speechSynthesis.getVoices();
+  if (!Array.isArray(voices) || !voices.length) return null;
+
+  const normalizedLocale = String(locale || "").toLowerCase();
+  const exact = voices.find((voice) => String(voice.lang || "").toLowerCase() === normalizedLocale);
+  if (exact) return exact;
+
+  const prefix = normalizedLocale.split("-")[0];
+  const byPrefix = voices.find((voice) =>
+    String(voice.lang || "").toLowerCase().startsWith(prefix)
+  );
+  return byPrefix || null;
+}
+
+function speakWithBrowserVoice(text, onEnd) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = candidateSpeechLocale;
+  utterance.rate = 0.98;
+  utterance.pitch = 1.0;
+
+  const preferredVoice = pickBrowserVoice(candidateSpeechLocale);
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
+  }
+
+  utterance.onend = () => {
+    setAIState("idle");
+    if (typeof onEnd === "function") onEnd();
+  };
+
+  utterance.onerror = () => {
+    setAIState("idle");
+    if (typeof onEnd === "function") onEnd();
+  };
+
+  speechSynthesis.speak(utterance);
+}
+
+async function fetchNeuralSpeechAudioUrl(text) {
+  if (!neuralVoiceAttemptEnabled) return "";
+  if (!window.InterviewAI?.api?.fetch) return "";
+
+  aiSpeechFetchController = new AbortController();
+
+  try {
+    const res = await window.InterviewAI.api.fetch("/interview/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: aiSpeechFetchController.signal,
+      body: JSON.stringify({
+        text,
+        language: getSpeechLanguageLabel(candidateSpeechLocale),
+        style: getInterviewerVoiceStyle()
+      })
+    });
+
+    if (!res.ok) {
+      // Disable repeated failed neural attempts when service/key is unavailable.
+      if (res.status === 401 || res.status === 403 || res.status === 404 || res.status === 503) {
+        neuralVoiceAttemptEnabled = false;
+      }
+      return "";
+    }
+
+    const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("audio")) return "";
+
+    const audioBlob = await res.blob();
+    if (!audioBlob || !audioBlob.size) return "";
+
+    return URL.createObjectURL(audioBlob);
+  } catch (err) {
+    if (err?.name === "AbortError") return "";
+    return "";
+  } finally {
+    aiSpeechFetchController = null;
+  }
+}
+
+function speak(text, onEnd) {
+  stopAISpeechOutput();
   setAIState("speaking");
 
   const clean = String(text || "").trim();
@@ -143,14 +307,38 @@ function speak(text, onEnd) {
     return;
   }
 
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "en-US";
-  u.onend = () => {
-    setAIState("idle");
-    if (typeof onEnd === "function") onEnd();
-  };
+  const fallback = () => speakWithBrowserVoice(clean, onEnd);
 
-  speechSynthesis.speak(u);
+  fetchNeuralSpeechAudioUrl(clean)
+    .then((audioUrl) => {
+      if (!audioUrl) {
+        fallback();
+        return;
+      }
+
+      aiAudioObjectUrl = audioUrl;
+      aiAudioEl = new Audio(audioUrl);
+      aiAudioEl.preload = "auto";
+
+      aiAudioEl.onended = () => {
+        cleanupNeuralAudio();
+        setAIState("idle");
+        if (typeof onEnd === "function") onEnd();
+      };
+
+      aiAudioEl.onerror = () => {
+        cleanupNeuralAudio();
+        fallback();
+      };
+
+      aiAudioEl.play().catch(() => {
+        cleanupNeuralAudio();
+        fallback();
+      });
+    })
+    .catch(() => {
+      fallback();
+    });
 }
 
 function formatEvaluation(rawText, parsedJson) {
@@ -300,6 +488,7 @@ async function startSessionIfPossible() {
 
 async function startInterview() {
   candidateProfile = await loadCandidateProfile();
+  candidateSpeechLocale = getSpeechLocaleFromProfileLanguage(candidateProfile?.language);
   await startSessionIfPossible();
 
   const candidateName = (candidateProfile?.name || user.name || "Candidate").trim();
@@ -612,6 +801,14 @@ function endInterview() {
 
   sessionStorage.setItem("interviewSummary", JSON.stringify(interviewLog));
   localStorage.setItem("lastInterviewSummary", JSON.stringify(interviewLog));
+
+  if (window.InterviewAI?.practice?.addPracticeEvent) {
+    window.InterviewAI.practice.addPracticeEvent({
+      sessionId: currentSessionId || "",
+      date: endedAt,
+      questions: Math.max(1, interviewLog.length)
+    });
+  }
 
   if (userStream) {
     userStream.getTracks().forEach((track) => track.stop());
