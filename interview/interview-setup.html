@@ -14,12 +14,20 @@
 <div class="setup-container">
 
   <h2>Interview Setup</h2>
-  <p class="subtitle">Customize your interview experience</p>
+  <p class="subtitle">Customize your interview and launch quickly.</p>
 
   <form id="setupForm">
 
     <div class="form-group">
-      <label>Interview Type</label>
+      <label for="savedTemplate">Saved Template</label>
+      <select id="savedTemplate">
+        <option value="">Start from scratch</option>
+      </select>
+      <p class="help-text">Select a saved template to auto-fill fields.</p>
+    </div>
+
+    <div class="form-group">
+      <label for="interviewType">Interview Type</label>
       <select id="interviewType" required>
         <option value="">Select</option>
         <option>Technical</option>
@@ -30,7 +38,7 @@
     </div>
 
     <div class="form-group">
-      <label>Difficulty Level</label>
+      <label for="difficulty">Difficulty Level</label>
       <select id="difficulty" required>
         <option value="">Select</option>
         <option>Easy</option>
@@ -40,22 +48,33 @@
     </div>
 
     <div class="form-group">
-      <label>Interview Duration</label>
-      <select id="duration">
+      <label for="duration">Interview Duration</label>
+      <select id="duration" required>
         <option value="10">10 Minutes</option>
         <option value="15">15 Minutes</option>
         <option value="20">20 Minutes</option>
+        <option value="30">30 Minutes</option>
       </select>
+    </div>
+
+    <div class="template-tools">
+      <input id="templateName" type="text" placeholder="Template name (optional)">
+      <button type="button" class="secondary-btn" id="saveTemplateBtn">Save as Template</button>
     </div>
 
     <button type="submit" class="start-btn">
       Start Interview
     </button>
 
+    <p class="status-text" id="setupStatus"></p>
+    <a class="back-link" href="../practice/practice.html">Open Practice Hub</a>
+
   </form>
 
 </div>
 
+<script src="../js/practice-utils.js"></script>
+<script src="js/interview-setup-utils.js"></script>
 <script src="js/interview-setup.js"></script>
 </body>
 </html>
