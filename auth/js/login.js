@@ -29,7 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        errorMsg.innerText = data.error || "Login failed";
+        const hint = data.hint ? ` ${data.hint}` : "";
+        errorMsg.innerText = (data.error || "Login failed") + hint;
         return;
       }
 

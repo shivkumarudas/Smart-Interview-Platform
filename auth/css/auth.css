@@ -51,6 +51,17 @@ button:hover {
   background: #1557c0;
 }
 
+.secondary-btn {
+  margin-top: 10px;
+  background: #eef3ff;
+  color: #1f6ae1;
+  border: 1px solid #c9d8ff;
+}
+
+.secondary-btn:hover {
+  background: #dde9ff;
+}
+
 p {
   text-align: center;
   margin-top: 10px;
@@ -63,6 +74,12 @@ a {
 
 .error {
   color: red;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.success {
+  color: #1f8b4c;
   text-align: center;
   margin-top: 10px;
 }

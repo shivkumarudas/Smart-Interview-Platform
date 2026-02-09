@@ -2,6 +2,7 @@ node_modules/
 interview-ai-backend/node_modules/
 .env
 interview-ai-backend/.env
+interview-ai-backend/data/*.json
 .DS_Store
 Thumbs.db
 .vscode/
