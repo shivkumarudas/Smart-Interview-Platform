@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const { generateQuestion } = require("../ai/interviewAI");
 const { evaluateAnswer } = require("../ai/evaluateAnswer");
 const { synthesizeSpeech } = require("../ai/textToSpeech");
+const { transcribeSpeech, MAX_AUDIO_BYTES } = require("../ai/speechToText");
 const InterviewSession = require("../models/InterviewSession");
 
 const router = express.Router();
@@ -42,6 +43,32 @@ function sanitizeProfileSnapshot(profile) {
   });
 
   return snapshot;
+}
+
+function getProviderStatusCode(err) {
+  return Number(err?.response?.status || err?.status || err?.statusCode || 0);
+}
+
+function sendAiAuthError(res, serviceLabel, keyName) {
+  return res.status(503).json({
+    success: false,
+    error: `${serviceLabel} is unavailable. Update ${keyName} in interview-ai-backend/.env and restart the backend.`
+  });
+}
+
+function parseBase64Audio(audioBase64) {
+  const raw = String(audioBase64 || "").trim();
+  if (!raw) return null;
+
+  const cleaned = raw.includes(",") ? raw.split(",").pop() : raw;
+  if (!cleaned) return null;
+
+  try {
+    const buffer = Buffer.from(cleaned, "base64");
+    return buffer.length ? buffer : null;
+  } catch {
+    return null;
+  }
 }
 
 /* ================== SESSION START ================== */
@@ -246,11 +273,20 @@ router.post("/question", async (req, res) => {
       coachTip
     });
   } catch (err) {
+    const providerStatus = getProviderStatusCode(err);
+    if (providerStatus === 401 || providerStatus === 403) {
+      return sendAiAuthError(res, "Interview question service", "GROQ_API_KEY");
+    }
+
+    if (String(err?.message || "").includes("GROQ_API_KEY is not set")) {
+      return sendAiAuthError(res, "Interview question service", "GROQ_API_KEY");
+    }
+
     console.error("Interview question error:", err.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: err.message || "Failed to generate question"
+      error: "Failed to generate question"
     });
   }
 });
@@ -279,11 +315,85 @@ router.post("/evaluate", async (req, res) => {
       score: evaluation?.json?.score ?? null
     });
   } catch (err) {
+    const providerStatus = getProviderStatusCode(err);
+    if (providerStatus === 401 || providerStatus === 403) {
+      return sendAiAuthError(res, "Answer evaluation service", "GROQ_API_KEY");
+    }
+
+    if (String(err?.message || "").includes("GROQ_API_KEY is not set")) {
+      return sendAiAuthError(res, "Answer evaluation service", "GROQ_API_KEY");
+    }
+
     console.error("Answer evaluation error:", err.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: err.message || "Failed to evaluate answer"
+      error: "Failed to evaluate answer"
+    });
+  }
+});
+
+/* ================== TRANSCRIBE USER VOICE ================== */
+router.post("/transcribe", async (req, res) => {
+  try {
+    const { audioBase64, mimeType, language, prompt } = req.body || {};
+    const audioBuffer = parseBase64Audio(audioBase64);
+
+    if (!audioBuffer) {
+      return res.status(400).json({
+        success: false,
+        error: "Audio is required"
+      });
+    }
+
+    if (audioBuffer.length > MAX_AUDIO_BYTES) {
+      return res.status(413).json({
+        success: false,
+        error: "Audio is too large. Keep recordings under 6MB."
+      });
+    }
+
+    const result = await transcribeSpeech({
+      audioBuffer,
+      mimeType,
+      language,
+      prompt
+    });
+
+    return res.json({
+      success: true,
+      text: result.text,
+      provider: result.provider
+    });
+  } catch (err) {
+    if (err?.code === "STT_API_KEY_MISSING") {
+      return res.status(503).json({
+        success: false,
+        error:
+          "Voice transcription is unavailable. Set OPENAI_API_KEY or GROQ_API_KEY in interview-ai-backend/.env."
+      });
+    }
+
+    if (err?.code === "AUDIO_TOO_LARGE") {
+      return res.status(413).json({
+        success: false,
+        error: err.message
+      });
+    }
+
+    const providerStatus = getProviderStatusCode(err);
+    if (providerStatus === 401 || providerStatus === 403) {
+      return res.status(503).json({
+        success: false,
+        error:
+          "Voice transcription auth failed. Check OPENAI_API_KEY or GROQ_API_KEY in interview-ai-backend/.env."
+      });
+    }
+
+    console.error("Transcription error:", err.message);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to transcribe audio"
     });
   }
 });
