@@ -1,0 +1,136 @@
+const OpenAI = require("openai");
+const { toFile } = require("openai/uploads");
+
+const MAX_AUDIO_BYTES = 6 * 1024 * 1024;
+
+let cachedOpenAIClient = null;
+let cachedGroqClient = null;
+
+function getOpenAIClient() {
+  const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
+  if (!apiKey) return null;
+
+  if (!cachedOpenAIClient) {
+    cachedOpenAIClient = new OpenAI({ apiKey });
+  }
+  return cachedOpenAIClient;
+}
+
+function getGroqClient() {
+  const apiKey = String(process.env.GROQ_API_KEY || "").trim();
+  if (!apiKey) return null;
+
+  if (!cachedGroqClient) {
+    cachedGroqClient = new OpenAI({
+      apiKey,
+      baseURL: "https://api.groq.com/openai/v1"
+    });
+  }
+  return cachedGroqClient;
+}
+
+function getTranscriptionProvider() {
+  const openaiClient = getOpenAIClient();
+  if (openaiClient) {
+    return {
+      provider: "openai",
+      model: String(process.env.STT_MODEL || "gpt-4o-mini-transcribe").trim(),
+      client: openaiClient
+    };
+  }
+
+  const groqClient = getGroqClient();
+  if (groqClient) {
+    return {
+      provider: "groq",
+      model: String(process.env.GROQ_STT_MODEL || "whisper-large-v3-turbo").trim(),
+      client: groqClient
+    };
+  }
+
+  return null;
+}
+
+function normalizeLanguage(language) {
+  const value = String(language || "").trim();
+  if (!value) return undefined;
+
+  const normalized = value.toLowerCase();
+
+  if (normalized.includes("english")) return "en";
+  if (normalized.includes("hindi")) return "hi";
+
+  if (/^[a-z]{2}(-[a-z]{2})?$/i.test(value)) {
+    return value.slice(0, 2).toLowerCase();
+  }
+
+  return undefined;
+}
+
+function extensionFromMimeType(mimeType) {
+  const normalized = String(mimeType || "").toLowerCase();
+  if (normalized.includes("webm")) return "webm";
+  if (normalized.includes("wav")) return "wav";
+  if (normalized.includes("mpeg") || normalized.includes("mp3")) return "mp3";
+  if (normalized.includes("mp4") || normalized.includes("m4a")) return "m4a";
+  if (normalized.includes("ogg")) return "ogg";
+  return "webm";
+}
+
+function cleanPrompt(prompt) {
+  const value = String(prompt || "").trim();
+  if (!value) return undefined;
+  return value.slice(0, 240);
+}
+
+function validateAudioBuffer(audioBuffer) {
+  if (!Buffer.isBuffer(audioBuffer) || !audioBuffer.length) {
+    throw new Error("Audio buffer is empty");
+  }
+
+  if (audioBuffer.length > MAX_AUDIO_BYTES) {
+    const err = new Error("Audio is too large. Keep recordings under 6MB.");
+    err.code = "AUDIO_TOO_LARGE";
+    throw err;
+  }
+}
+
+async function transcribeSpeech({ audioBuffer, mimeType, language, prompt }) {
+  validateAudioBuffer(audioBuffer);
+
+  const provider = getTranscriptionProvider();
+  if (!provider) {
+    const err = new Error("No transcription API key configured");
+    err.code = "STT_API_KEY_MISSING";
+    throw err;
+  }
+
+  const audioFile = await toFile(
+    audioBuffer,
+    `candidate-answer.${extensionFromMimeType(mimeType)}`,
+    { type: String(mimeType || "audio/webm").trim() || "audio/webm" }
+  );
+
+  const response = await provider.client.audio.transcriptions.create({
+    file: audioFile,
+    model: provider.model,
+    language: normalizeLanguage(language),
+    prompt: cleanPrompt(prompt)
+  });
+
+  const text = String(response?.text || "").trim();
+  if (!text) {
+    throw new Error("Transcription returned empty text");
+  }
+
+  return {
+    text,
+    provider: provider.provider,
+    model: provider.model
+  };
+}
+
+module.exports = {
+  transcribeSpeech,
+  MAX_AUDIO_BYTES
+};
