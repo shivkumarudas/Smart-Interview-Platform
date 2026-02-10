@@ -15,8 +15,9 @@ A lightweight web app with a Node/Express backend and a static HTML/JS frontend 
 2) Create `interview-ai-backend/.env` (start from `interview-ai-backend/.env.example`) and set:
    - `GROQ_API_KEY` (required for interview question/evaluation)
    - `MONGO_URI` (required for signup/login/profile/feedback)
-   - Optional: `OPENAI_API_KEY` (enables realistic neural AI voice in interview room)
+   - Optional: `OPENAI_API_KEY` (enables realistic neural AI voice + speech transcription fallback)
    - Optional: `GROQ_MODEL` (override default model)
+   - Optional: `STT_MODEL` or `GROQ_STT_MODEL` (override speech-to-text model)
 3) Start the server:
    ```bash
    npm start
@@ -49,6 +50,7 @@ A lightweight web app with a Node/Express backend and a static HTML/JS frontend 
 - `POST /interview/question`
 - `POST /interview/evaluate` (returns `evaluation` + optional `evaluationJson`)
 - `POST /interview/tts` (returns generated AI voice audio)
+- `POST /interview/transcribe` (transcribes user voice answer to text)
 - `POST /interview/session/start`
 - `POST /interview/session/:sessionId/entry`
 - `POST /interview/session/:sessionId/end`
