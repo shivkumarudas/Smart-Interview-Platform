@@ -28,6 +28,7 @@ const answeredQuestions = document.getElementById("answeredQuestions");
 const avgAnswerLength = document.getElementById("avgAnswerLength");
 const feedbackCount = document.getElementById("feedbackCount");
 const avgScore = document.getElementById("avgScore");
+const answerAccuracy = document.getElementById("answerAccuracy");
 
 const downloadReport = document.getElementById("downloadReport");
 const printReport = document.getElementById("printReport");
@@ -159,12 +160,20 @@ function renderStats() {
   const avgScoreValue = scores.length
     ? Math.round((scores.reduce((sum, value) => sum + value, 0) / scores.length) * 10) / 10
     : null;
+  const accuracyValue = scores.length
+    ? Math.round(
+      (scores.reduce((sum, value) => sum + Math.max(0, Math.min(10, value)), 0) /
+        (scores.length * 10)) *
+        100
+    )
+    : null;
 
   if (totalQuestions) totalQuestions.textContent = total;
   if (answeredQuestions) answeredQuestions.textContent = answered;
   if (feedbackCount) feedbackCount.textContent = feedbackTotal;
   if (avgAnswerLength) avgAnswerLength.textContent = `${avgWords} words`;
   if (avgScore) avgScore.textContent = avgScoreValue === null ? "--" : `${avgScoreValue}/10`;
+  if (answerAccuracy) answerAccuracy.textContent = accuracyValue === null ? "--" : `${accuracyValue}%`;
 }
 
 function renderList() {
