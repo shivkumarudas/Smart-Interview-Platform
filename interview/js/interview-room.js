@@ -49,6 +49,14 @@ let aiAudioObjectUrl = "";
 let aiSpeechFetchController = null;
 let neuralVoiceAttemptEnabled = true;
 let candidateSpeechLocale = "en-US";
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+let recognition = null;
+let finalAnswer = "";
+let latestTranscript = "";
+let mediaRecorder = null;
+let mediaChunks = [];
+let mediaRecorderMimeType = "";
+let preferRecorderMode = false;
 
 /* ================= AI AVATAR STATES ================= */
 function setAIState(state) {
@@ -372,6 +380,33 @@ function formatEvaluation(rawText, parsedJson) {
   return lines.length ? lines.join("\n") : String(rawText || "").trim();
 }
 
+function normalizeApiErrorMessage(rawMessage, fallback) {
+  const message = String(rawMessage || "").trim();
+  if (!message) return fallback;
+
+  if (/status code 401|invalid api key|unauthorized/i.test(message)) {
+    return "AI auth failed. Update GROQ_API_KEY in interview-ai-backend/.env and restart backend.";
+  }
+
+  if (/status code 403|forbidden/i.test(message)) {
+    return "AI access denied. Check your API key and model permissions.";
+  }
+
+  return message;
+}
+
+function canUseSpeechRecognition() {
+  return !!recognition;
+}
+
+function canUseMediaRecorder() {
+  return !!(window.MediaRecorder && userStream);
+}
+
+function canCaptureVoice() {
+  return canUseSpeechRecognition() || canUseMediaRecorder();
+}
+
 function setAnswerControls({ canStart, canStop, canSubmitTyped }) {
   if (startAnswerBtn) startAnswerBtn.disabled = !canStart;
   if (stopAnswerBtn) stopAnswerBtn.disabled = !canStop;
@@ -489,6 +524,9 @@ async function startSessionIfPossible() {
 async function startInterview() {
   candidateProfile = await loadCandidateProfile();
   candidateSpeechLocale = getSpeechLocaleFromProfileLanguage(candidateProfile?.language);
+  if (recognition) {
+    recognition.lang = candidateSpeechLocale;
+  }
   await startSessionIfPossible();
 
   const candidateName = (candidateProfile?.name || user.name || "Candidate").trim();
@@ -565,27 +603,82 @@ async function askAIQuestion() {
     aiText.innerText = currentQuestion;
     speak(currentQuestion, () => {
       answerText.innerText = "Click Start Answer and speak, or type your answer and submit.";
-      setAnswerControls({ canStart: !!recognition, canStop: false, canSubmitTyped: true });
+      setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       setAIState("idle");
     });
 
   } catch (err) {
     console.error("Question error:", err);
-    aiText.innerText = err.message;
+    aiText.innerText = normalizeApiErrorMessage(err?.message, "Failed to get question");
     setAIState("idle");
   }
 }
 
 /* ================= SPEECH TO TEXT ================= */
-let recognition = null;
-let finalAnswer = "";
-let latestTranscript = "";
+function pickRecorderMimeType() {
+  if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "";
+  }
 
-if ("webkitSpeechRecognition" in window) {
-  recognition = new webkitSpeechRecognition();
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4"
+  ];
+
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Unable to read recorded audio"));
+    reader.onloadend = () => {
+      const result = String(reader.result || "");
+      const base64 = result.includes(",") ? result.split(",").pop() : "";
+      if (!base64) {
+        reject(new Error("Recorded audio is empty"));
+        return;
+      }
+      resolve(base64);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function transcribeRecordedAudio(audioBlob) {
+  const audioBase64 = await blobToBase64(audioBlob);
+
+  const res = await window.InterviewAI.api.fetch("/interview/transcribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      audioBase64,
+      mimeType: audioBlob.type || mediaRecorderMimeType || "audio/webm",
+      language: candidateSpeechLocale,
+      prompt: "Interview candidate answer transcript."
+    })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.text) {
+    throw new Error(data.error || "Unable to transcribe voice answer");
+  }
+
+  return String(data.text || "").trim();
+}
+
+function initSpeechRecognition() {
+  if (!SpeechRecognitionCtor) {
+    console.warn("Speech recognition API unavailable. Recorder transcription fallback enabled.");
+    return;
+  }
+
+  recognition = new SpeechRecognitionCtor();
   recognition.continuous = false;
   recognition.interimResults = true;
-  recognition.lang = "en-US";
+  recognition.lang = candidateSpeechLocale;
 
   recognition.onresult = (event) => {
     let interim = "";
@@ -610,13 +703,13 @@ if ("webkitSpeechRecognition" in window) {
 
     const trimmedAnswer = (finalAnswer.trim() || latestTranscript.trim());
     if (!submit) {
-      setAnswerControls({ canStart: !!recognition, canStop: false, canSubmitTyped: true });
+      setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       return;
     }
 
     if (!trimmedAnswer) {
       answerText.innerText = "No speech detected. Click Start Answer and try again, or type your answer.";
-      setAnswerControls({ canStart: !!recognition, canStop: false, canSubmitTyped: true });
+      setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       return;
     }
 
@@ -627,57 +720,197 @@ if ("webkitSpeechRecognition" in window) {
   recognition.onerror = (event) => {
     isCapturing = false;
     shouldSubmitOnEnd = false;
+
+    if ((event?.error === "not-allowed" || event?.error === "service-not-allowed") && canUseMediaRecorder()) {
+      preferRecorderMode = true;
+      answerText.innerText = "Speech API blocked. Switching to recorder mode...";
+      if (startRecorderCapture()) return;
+    }
+
     if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
       requestMicActivation();
       return;
     }
+
     answerText.innerText = "Microphone error. Please refresh and allow mic access.";
-    setAnswerControls({ canStart: !!recognition, canStop: false, canSubmitTyped: true });
+    setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
   };
-} else {
-  console.warn("Speech recognition not supported. Falling back to typed answers.");
+}
+
+async function handleRecorderStop() {
+  const submit = shouldSubmitOnEnd;
+  shouldSubmitOnEnd = false;
+  isCapturing = false;
+
+  const blob = mediaChunks.length
+    ? new Blob(mediaChunks, { type: mediaRecorderMimeType || "audio/webm" })
+    : null;
+
+  mediaChunks = [];
+  mediaRecorder = null;
+
+  if (!submit) {
+    setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
+    return;
+  }
+
+  if (!blob || !blob.size) {
+    answerText.innerText = "No speech detected. Click Start Answer and try again, or type your answer.";
+    setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
+    return;
+  }
+
+  setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
+  answerText.innerText = "Transcribing your voice answer...";
+
+  try {
+    const transcript = await transcribeRecordedAudio(blob);
+    if (!transcript) {
+      answerText.innerText = "No speech detected. Try again or type your answer.";
+      setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
+      return;
+    }
+
+    latestTranscript = transcript;
+    answerText.innerText = transcript;
+    submitAnswer(transcript, { source: "speech" });
+  } catch (err) {
+    answerText.innerText = normalizeApiErrorMessage(
+      err?.message,
+      "Voice transcription failed"
+    );
+    setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
+  }
+}
+
+function startRecorderCapture() {
+  if (!canUseMediaRecorder()) return false;
+
+  mediaChunks = [];
+  mediaRecorderMimeType = pickRecorderMimeType();
+
+  try {
+    mediaRecorder = mediaRecorderMimeType
+      ? new MediaRecorder(userStream, {
+        mimeType: mediaRecorderMimeType,
+        audioBitsPerSecond: 64000
+      })
+      : new MediaRecorder(userStream);
+    mediaRecorderMimeType = mediaRecorder.mimeType || mediaRecorderMimeType || "audio/webm";
+  } catch (err) {
+    console.warn("MediaRecorder unavailable:", err?.message || err);
+    mediaRecorder = null;
+    return false;
+  }
+
+  mediaRecorder.ondataavailable = (event) => {
+    if (event?.data && event.data.size > 0) {
+      mediaChunks.push(event.data);
+    }
+  };
+
+  mediaRecorder.onerror = () => {
+    isCapturing = false;
+    shouldSubmitOnEnd = false;
+    mediaChunks = [];
+    mediaRecorder = null;
+    answerText.innerText = "Recording failed. Please try again or type your answer.";
+    setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
+  };
+
+  mediaRecorder.onstop = () => {
+    handleRecorderStop().catch(() => {
+      answerText.innerText = "Voice transcription failed";
+      setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
+    });
+  };
+
+  isCapturing = true;
+  shouldSubmitOnEnd = true;
+  silenceStartedAt = null;
+  answerText.innerText = "Listening...";
+  setAnswerControls({ canStart: false, canStop: true, canSubmitTyped: false });
+
+  try {
+    mediaRecorder.start(200);
+    return true;
+  } catch (err) {
+    isCapturing = false;
+    shouldSubmitOnEnd = false;
+    mediaChunks = [];
+    mediaRecorder = null;
+    return false;
+  }
 }
 
 function requestMicActivation() {
   if (micActivationPending) return;
   micActivationPending = true;
-  answerText.innerText = "Microphone permission required. Allow mic access, then click Start Answer.";
-  setAnswerControls({ canStart: !!recognition, canStop: false, canSubmitTyped: true });
+
+  if (!canCaptureVoice()) {
+    answerText.innerText = "Voice input is unavailable in this browser. Type your answer instead.";
+  } else {
+    answerText.innerText = "Microphone permission required. Allow mic access, then click Start Answer.";
+  }
+
+  setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
   setTimeout(() => {
     micActivationPending = false;
   }, 1500);
 }
 
 function beginAnswerCapture() {
-  if (!recognition) return;
-
   finalAnswer = "";
   latestTranscript = "";
-  isCapturing = true;
-  shouldSubmitOnEnd = true;
-  silenceStartedAt = null;
-  answerText.innerText = "Listening...";
-  setAnswerControls({ canStart: false, canStop: true, canSubmitTyped: false });
-  try {
-    recognition.start();
-  } catch (err) {
-    isCapturing = false;
-    shouldSubmitOnEnd = false;
-    requestMicActivation();
+
+  if (canUseSpeechRecognition() && !preferRecorderMode) {
+    isCapturing = true;
+    shouldSubmitOnEnd = true;
+    silenceStartedAt = null;
+    answerText.innerText = "Listening...";
+    setAnswerControls({ canStart: false, canStop: true, canSubmitTyped: false });
+
+    try {
+      recognition.start();
+      return;
+    } catch {
+      preferRecorderMode = true;
+      isCapturing = false;
+      shouldSubmitOnEnd = false;
+    }
   }
+
+  if (startRecorderCapture()) return;
+  requestMicActivation();
 }
 
 function stopAnswerCapture({ submit }) {
-  if (!recognition) return;
   shouldSubmitOnEnd = !!submit;
   isCapturing = false;
   setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
-  try {
-    recognition.stop();
-  } catch {
-    // ignore
+
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    try {
+      mediaRecorder.stop();
+    } catch {
+      // ignore
+    }
+    return;
   }
+
+  if (recognition) {
+    try {
+      recognition.stop();
+    } catch {
+      // ignore
+    }
+    return;
+  }
+
+  setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
 }
+
+initSpeechRecognition();
 
 async function saveSessionEntry(entry) {
   if (!currentSessionId) return;
@@ -723,7 +956,7 @@ async function submitAnswer(answerValue, { source } = {}) {
   try {
     setAIState("thinking");
     setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
-    answerText.innerText = "Evaluating your answer...";
+    answerText.innerText = "Answer received. Evaluating in background...";
 
     const res = await window.InterviewAI.api.fetch("/interview/evaluate", {
       method: "POST",
@@ -746,8 +979,6 @@ async function submitAnswer(answerValue, { source } = {}) {
 
     const formattedFeedback = formatEvaluation(data.evaluation, data.evaluationJson);
 
-    answerText.innerText = "AI Feedback:\n\n" + formattedFeedback;
-
     const score = data.score ?? data?.evaluationJson?.score ?? null;
 
     const entry = {
@@ -767,18 +998,37 @@ async function submitAnswer(answerValue, { source } = {}) {
     });
 
     setAIState("idle");
-    setTimeout(askAIQuestion, 4500);
+    answerText.innerText = "Answer saved. Detailed AI feedback will appear in your final report.";
+    setTimeout(askAIQuestion, 1000);
   } catch (err) {
     console.error("Evaluation error:", err);
+    const fallbackEntry = {
+      ...baseEntry,
+      feedback: "Evaluation unavailable for this answer.",
+      score: null
+    };
+    interviewLog.push(fallbackEntry);
+
+    await saveSessionEntry({
+      ...baseEntry,
+      evaluation: "Evaluation unavailable for this answer.",
+      score: null
+    });
+
     setAIState("idle");
-    answerText.innerText = err.message || "Evaluation failed";
-    setAnswerControls({ canStart: !!recognition, canStop: false, canSubmitTyped: true });
+    answerText.innerText = "Answer saved. AI evaluation was unavailable for this question.";
+    setTimeout(askAIQuestion, 1000);
   }
 }
 
 /* ================= END INTERVIEW ================= */
 function endInterview() {
   try {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      shouldSubmitOnEnd = false;
+      mediaRecorder.stop();
+    }
+
     if (recognition) {
       shouldSubmitOnEnd = false;
       recognition.stop();
