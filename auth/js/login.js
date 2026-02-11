@@ -1,5 +1,3 @@
-console.log("login.js loaded");
-
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("loginForm");
   const errorMsg = document.getElementById("errorMsg");
@@ -34,12 +32,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // ✅ SAVE USER SESSION
       localStorage.setItem("user", JSON.stringify(data.user));
-
-      // ✅ REDIRECT
       window.location.href = "../dashboard/dashboard.html";
-
     } catch (err) {
       console.error(err);
       errorMsg.innerText = "Server not reachable";
