@@ -258,6 +258,15 @@ body.login-page p {
   background: linear-gradient(120deg, #09695d, #0b8777);
 }
 
+.login-card button[type="submit"]:disabled {
+  opacity: 0.74;
+  cursor: not-allowed;
+}
+
+.login-card button[type="submit"].is-loading {
+  letter-spacing: 0.02em;
+}
+
 .helper-links {
   margin-top: 14px;
   display: flex;
@@ -281,6 +290,14 @@ body.login-page p {
   text-align: left;
   color: #cf2f2f;
   font-size: 0.9rem;
+}
+
+.login-card a:focus-visible,
+.password-toggle:focus-visible,
+.login-card button:focus-visible,
+.login-card input:focus-visible {
+  outline: 3px solid rgba(13, 154, 135, 0.34);
+  outline-offset: 2px;
 }
 
 @keyframes panel-in {
@@ -339,5 +356,21 @@ body.login-page p {
 
   .password-field #password {
     padding-right: 84px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-panel,
+  .login-card,
+  .feature-list li {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
