@@ -4,27 +4,67 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Login | InterviewAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/auth.css">
+<link rel="stylesheet" href="css/login-ui.css">
 </head>
-<body>
+<body class="login-page">
 
-<div class="container">
-  <div class="card">
-    <h2>Login</h2>
+<main class="login-layout">
+  <section class="brand-panel" aria-label="Platform introduction">
+    <p class="eyebrow">Smart Interview Platform</p>
+    <h1>Practice with an interviewer that adapts in real time.</h1>
+    <p class="panel-copy">
+      Run realistic mock interviews, get AI-generated questions, and improve answer quality with immediate feedback.
+    </p>
 
-    <form id="loginForm">
-      <input type="email" id="email" placeholder="Email" required>
-      <input type="password" id="password" placeholder="Password" required>
+    <ul class="feature-list">
+      <li>Dynamic technical and behavioral prompts</li>
+      <li>Voice + text answer support</li>
+      <li>Score-driven report after each session</li>
+    </ul>
 
-      <button type="submit">Login</button>
-      <p><a href="forgot-password.html">Forgot Password?</a></p>
-      <p>Don't have an account? <a href="signup.html">Sign Up</a></p>
-      <div class="error" id="errorMsg"></div>
-    </form>
-  </div>
-</div>
+    <div class="status-card" role="status" aria-live="polite">
+      <span id="apiStatusDot" class="status-dot checking"></span>
+      <div>
+        <p class="status-label">Connection</p>
+        <p id="apiStatusText" class="status-value">Checking backend...</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="card login-card">
+      <h2>Welcome Back</h2>
+      <p class="subtitle">Continue your interview prep journey.</p>
+
+      <form id="loginForm">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email" required>
+
+        <label for="password">Password</label>
+        <div class="password-field">
+          <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+          <button type="button" id="togglePassword" class="password-toggle" aria-label="Show password">Show</button>
+        </div>
+
+        <button type="submit">Login</button>
+
+        <div class="helper-links">
+          <a href="forgot-password.html">Forgot Password?</a>
+          <a href="signup.html">Create Account</a>
+        </div>
+
+        <div class="error" id="errorMsg"></div>
+      </form>
+    </div>
+  </section>
+</main>
 
 <script src="../js/api.js"></script>
+<script src="js/login-ui.js"></script>
 <script src="js/login.js"></script>
 </body>
 </html>
