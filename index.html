@@ -5,20 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>InterviewAI | AI-Powered Interview Platform</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
 
 <!-- ================= NAVBAR ================= -->
-<nav class="navbar">
-  <div class="logo">InterviewAI</div>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#modes">Modes</a>
-    <a href="#how">Process</a>
-    <a href="#tech">Tech</a>
+<nav class="navbar" aria-label="Primary navigation">
+  <a class="logo" href="index.html">InterviewAI</a>
+
+  <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="navSurface">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
+  <div class="nav-surface" id="navSurface">
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#modes">Modes</a>
+      <a href="#how">Process</a>
+      <a href="#tech">Tech</a>
+      <a href="#faq">FAQ</a>
+    </div>
     <button class="nav-btn" id="navBtn">Login</button>
   </div>
 </nav>
@@ -26,26 +38,26 @@
 <!-- ================= HERO ================= -->
 <section class="hero">
   <div class="hero-content">
-    <span class="badge">🚀 AI-Powered Interview Practice</span>
+    <span class="badge">AI interview practice for real hiring scenarios</span>
     <h1>
-      Prepare Smarter.<br>
-      <span>Crack Interviews with AI.</span>
+      Prepare with depth.<br>
+      <span>Interview with confidence.</span>
     </h1>
 
     <p>
-      InterviewAI simulates real interviews using Artificial Intelligence.
-      Improve confidence, communication, and technical skills with instant AI feedback.
+      InterviewAI simulates practical interview rounds and returns actionable feedback so you can improve clarity,
+      structure, and technical precision in every attempt.
     </p>
 
     <div class="hero-actions">
       <button class="primary-btn" id="primaryBtn">Get Started Free</button>
-      <button class="secondary-btn">Watch Demo</button>
+      <button class="secondary-btn" id="demoBtn">Watch Demo</button>
     </div>
 
     <div class="trust">
-      <span>✔ Students</span>
-      <span>✔ Freshers</span>
-      <span>✔ Professionals</span>
+      <span>Students</span>
+      <span>Freshers</span>
+      <span>Working Professionals</span>
     </div>
   </div>
 
@@ -60,23 +72,23 @@
 
   <div class="feature-grid">
     <div class="feature-card">
-      <h3>🤖 Resume-Based Questions</h3>
+      <h3>Resume-Based Questions</h3>
       <p>AI generates interview questions based on your skills and profile.</p>
     </div>
 
     <div class="feature-card">
-      <h3>🎥 Emotion & Confidence Analysis</h3>
-      <p>Analyze facial expressions, speech clarity, and confidence.</p>
+      <h3>Confidence Analysis</h3>
+      <p>Analyze speech clarity, pacing, and delivery signals.</p>
     </div>
 
     <div class="feature-card">
-      <h3>📊 Detailed AI Reports</h3>
-      <p>Actionable feedback with improvement suggestions.</p>
+      <h3>Detailed AI Reports</h3>
+      <p>Actionable feedback with specific improvement suggestions.</p>
     </div>
 
     <div class="feature-card">
-      <h3>⚡ Instant Feedback</h3>
-      <p>Know your strengths and weaknesses immediately.</p>
+      <h3>Instant Feedback</h3>
+      <p>Know strengths, risks, and what to improve immediately.</p>
     </div>
   </div>
 </section>
@@ -87,23 +99,23 @@
 
   <div class="mode-grid">
     <div class="mode-card">
-      <h3>🎯 Technical Interview</h3>
-      <p>Frontend, Backend, DSA & role-based questions.</p>
+      <h3>Technical Interview</h3>
+      <p>Frontend, backend, DSA, and role-based questions.</p>
     </div>
 
     <div class="mode-card">
-      <h3>💬 HR Interview</h3>
-      <p>Communication skills, attitude & culture fit.</p>
+      <h3>HR Interview</h3>
+      <p>Communication, intent, and culture-fit prompts.</p>
     </div>
 
     <div class="mode-card">
-      <h3>🧠 Behavioral Interview</h3>
-      <p>STAR-based situational questions.</p>
+      <h3>Behavioral Interview</h3>
+      <p>STAR-based situational and impact-focused answers.</p>
     </div>
 
     <div class="mode-card">
-      <h3>🔀 Mixed Interview</h3>
-      <p>Combination of technical + HR + behavioral.</p>
+      <h3>Mixed Interview</h3>
+      <p>Balanced sequence of technical and behavioral rounds.</p>
     </div>
   </div>
 </section>
@@ -136,19 +148,19 @@
     <div class="step">
       <span>2</span>
       <h4>Complete Profile</h4>
-      <p>Add skills, experience & preferences.</p>
+      <p>Add skills, experience, and interview preferences.</p>
     </div>
 
     <div class="step">
       <span>3</span>
       <h4>Take Interview</h4>
-      <p>Answer AI-generated interview questions.</p>
+      <p>Answer adaptive, AI-generated interview questions.</p>
     </div>
 
     <div class="step">
       <span>4</span>
       <h4>Get AI Feedback</h4>
-      <p>Receive detailed AI performance reports.</p>
+      <p>Receive detailed performance reports after each session.</p>
     </div>
   </div>
 </section>
@@ -158,22 +170,22 @@
   <h2>Real-Time AI Feedback</h2>
 
   <div class="feedback-grid">
-    <div class="feedback-card">🎤 Speech & Voice Analysis</div>
-    <div class="feedback-card">😃 Emotion Detection</div>
-    <div class="feedback-card">👀 Eye Contact & Body Language</div>
-    <div class="feedback-card">📈 Performance Scoring</div>
+    <div class="feedback-card">Speech and Voice Analysis</div>
+    <div class="feedback-card">Response Confidence Signals</div>
+    <div class="feedback-card">Answer Structure and Clarity</div>
+    <div class="feedback-card">Performance Scoring</div>
   </div>
 </section>
 
 <!-- ================= SECURITY ================= -->
 <section class="security">
-  <h2>Security & Privacy</h2>
+  <h2>Security and Privacy</h2>
 
   <ul class="security-list">
-    <li>🔐 Encrypted user data storage</li>
-    <li>🔒 Secure authentication system</li>
-    <li>🛡 No video stored without consent</li>
-    <li>📁 User-controlled data deletion</li>
+    <li>Encrypted user data storage</li>
+    <li>Secure authentication system</li>
+    <li>No interview media saved without consent</li>
+    <li>User-controlled data deletion</li>
   </ul>
 </section>
 
@@ -183,15 +195,16 @@
 
   <div class="tech-grid">
     <span>HTML, CSS, JavaScript</span>
-    <span>Node.js & Express</span>
+    <span>Node.js and Express</span>
     <span>MongoDB</span>
     <span>FastAPI</span>
-    <span>Whisper (Speech AI)</span>
+    <span>Speech AI</span>
     <span>Computer Vision</span>
   </div>
 </section>
+
 <!-- ================= FAQ ================= -->
-<section class="faq">
+<section id="faq" class="faq">
   <h2>Frequently Asked Questions</h2>
 
   <div class="faq-container">
@@ -202,8 +215,8 @@
         <span class="icon">+</span>
       </div>
       <div class="faq-answer">
-        InterviewAI is an AI-powered platform that simulates real interviews
-        and provides instant feedback on confidence, communication, and skills.
+        InterviewAI is an AI-powered platform that simulates realistic interviews
+        and provides instant feedback on communication and technical depth.
       </div>
     </div>
 
@@ -213,7 +226,7 @@
         <span class="icon">+</span>
       </div>
       <div class="faq-answer">
-        Yes, you can start with free interviews. Advanced features can be added later.
+        Yes, you can start with free interviews. Advanced features may be expanded later.
       </div>
     </div>
 
@@ -223,7 +236,7 @@
         <span class="icon">+</span>
       </div>
       <div class="faq-answer">
-        No. Your interview video is processed securely and not stored without consent.
+        No. Interview media is processed securely and not stored without consent.
       </div>
     </div>
 
@@ -233,7 +246,7 @@
         <span class="icon">+</span>
       </div>
       <div class="faq-answer">
-        Frontend, Backend, Full Stack, Data Science, ML, and Software Engineering roles.
+        Frontend, backend, full stack, data science, ML, and software engineering roles.
       </div>
     </div>
 
@@ -249,7 +262,7 @@
 
 <!-- ================= FOOTER ================= -->
 <footer>
-  © 2026 InterviewAI • AI-Powered Interview Platform
+  &copy; 2026 InterviewAI | AI-Powered Interview Platform
 </footer>
 
 <script src="js/index.js"></script>
