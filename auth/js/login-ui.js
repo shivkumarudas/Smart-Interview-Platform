@@ -11,6 +11,13 @@ document.addEventListener("DOMContentLoaded", () => {
     apiStatusDot.classList.add(state);
   }
 
+  function resolveDisplayEndpoint(api) {
+    const base = String(api?.baseUrl || "").trim();
+    if (base) return base;
+    if (window.location?.protocol === "file:") return "http://127.0.0.1:5000";
+    return window.location.origin || "same origin";
+  }
+
   if (passwordToggle && passwordInput) {
     passwordToggle.addEventListener("click", () => {
       const isHidden = passwordInput.type === "password";
@@ -35,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const text = (await res.text()).trim().toLowerCase();
 
       if (res.ok && text === "pong") {
-        const endpoint = api.baseUrl || window.location.origin;
+        const endpoint = resolveDisplayEndpoint(api);
         setStatus("online", `Connected to ${endpoint}`);
         return;
       }
