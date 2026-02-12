@@ -1,0 +1,304 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap");
+
+:root {
+  --ui-ink-900: #102742;
+  --ui-ink-700: #3f556d;
+  --ui-ink-500: #6c8096;
+  --ui-line: #d7e2ec;
+  --ui-surface-0: #f3f6fb;
+  --ui-surface-1: #ffffff;
+  --ui-surface-2: #edf3f9;
+  --ui-teal-600: #0d7f70;
+  --ui-teal-500: #119985;
+  --ui-teal-100: #def5f0;
+  --ui-amber-500: #f39c36;
+  --ui-shadow-lg: 0 18px 46px rgba(16, 39, 66, 0.12);
+  --ui-shadow-md: 0 12px 28px rgba(16, 39, 66, 0.09);
+}
+
+body.app-theme,
+body.app-theme * {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+body.app-theme h1,
+body.app-theme h2,
+body.app-theme h3,
+body.app-theme h4 {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+body.app-theme:not(.login-page) {
+  color: var(--ui-ink-900);
+  background:
+    radial-gradient(circle at 10% 6%, rgba(243, 156, 54, 0.16), transparent 36%),
+    radial-gradient(circle at 84% 4%, rgba(17, 153, 133, 0.16), transparent 34%),
+    var(--ui-surface-0);
+}
+
+body.app-theme a {
+  color: #1b5f87;
+}
+
+body.app-theme a:focus-visible,
+body.app-theme button:focus-visible,
+body.app-theme input:focus-visible,
+body.app-theme select:focus-visible,
+body.app-theme textarea:focus-visible {
+  outline: 3px solid rgba(17, 153, 133, 0.35);
+  outline-offset: 2px;
+}
+
+body.app-theme .sidebar {
+  background: linear-gradient(180deg, #0e3d56, #126f68);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 10px 0 30px rgba(14, 61, 86, 0.2);
+}
+
+body.app-theme .logo {
+  letter-spacing: 0.01em;
+}
+
+body.app-theme .menu a {
+  color: #ffffff;
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+body.app-theme .menu a:hover,
+body.app-theme .menu a.active {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateX(2px);
+}
+
+body.app-theme .main {
+  background: transparent;
+}
+
+body.app-theme .header {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--ui-line);
+  border-radius: 14px;
+  margin: 18px;
+  box-shadow: var(--ui-shadow-md);
+}
+
+body.app-theme .content {
+  padding-top: 12px;
+}
+
+body.app-theme:not(.login-page) .card,
+body.app-theme:not(.login-page) .panel,
+body.app-theme:not(.login-page) .hero-card,
+body.app-theme:not(.login-page) .stat-card,
+body.app-theme:not(.login-page) .qa-card,
+body.app-theme:not(.login-page) .qa-item {
+  background: linear-gradient(155deg, var(--ui-surface-1), var(--ui-surface-2));
+  border: 1px solid var(--ui-line);
+  box-shadow: var(--ui-shadow-md);
+  color: var(--ui-ink-900);
+}
+
+body.app-theme:not(.login-page) .badge,
+body.app-theme:not(.login-page) .skill {
+  background: linear-gradient(120deg, var(--ui-teal-100), #fff3e0);
+  color: #18546f;
+  border: 1px solid #cfe2ee;
+}
+
+body.app-theme:not(.login-page) input,
+body.app-theme:not(.login-page) select,
+body.app-theme:not(.login-page) textarea {
+  background: #ffffff;
+  color: var(--ui-ink-900);
+  border: 1px solid #c7d8e6;
+  border-radius: 10px;
+}
+
+body.app-theme:not(.login-page) input:focus,
+body.app-theme:not(.login-page) select:focus,
+body.app-theme:not(.login-page) textarea:focus {
+  border-color: #86b8dd;
+  box-shadow: 0 0 0 3px rgba(17, 153, 133, 0.12);
+}
+
+body.app-theme:not(.login-page) button,
+body.app-theme .btn.primary,
+body.app-theme .start-btn,
+body.app-theme .save-btn,
+body.app-theme .nav-btn,
+body.app-theme .primary-btn,
+body.app-theme .typed-btn,
+body.app-theme .mic-btn,
+body.app-theme .end-btn {
+  background: linear-gradient(120deg, var(--ui-teal-600), var(--ui-teal-500));
+  color: #ffffff;
+  border: none;
+}
+
+body.app-theme .btn.ghost,
+body.app-theme:not(.landing-page):not(.login-page) .secondary-btn {
+  background: #ffffff;
+  color: #24455f;
+  border: 1px solid #bfd3e2;
+}
+
+body.app-theme:not(.login-page) button:hover,
+body.app-theme .btn:hover,
+body.app-theme .start-btn:hover,
+body.app-theme .save-btn:hover,
+body.app-theme .nav-btn:hover,
+body.app-theme .primary-btn:hover,
+body.app-theme .typed-btn:hover,
+body.app-theme .mic-btn:hover {
+  filter: brightness(0.96);
+}
+
+body.app-theme .progress-fill,
+body.app-theme #profileProgress,
+body.app-theme #weeklyGoalFill,
+body.app-theme #interviewGoalBar,
+body.app-theme #questionGoalBar {
+  background: linear-gradient(90deg, var(--ui-teal-500), var(--ui-amber-500));
+}
+
+body.app-theme .status,
+body.app-theme .success {
+  color: #1f8b62;
+}
+
+body.app-theme .error {
+  color: #c73535;
+}
+
+body.app-theme.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+body.app-theme.auth-page .container {
+  width: min(460px, 100% - 30px);
+}
+
+body.app-theme.auth-page .card {
+  border-radius: 18px;
+  padding: 30px;
+}
+
+body.app-theme.auth-page h2 {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+body.app-theme.auth-page p {
+  text-align: center;
+  color: var(--ui-ink-700);
+}
+
+body.app-theme .report-page .session-select {
+  background: #ffffff;
+  color: var(--ui-ink-900);
+  border: 1px solid #c7d8e6;
+}
+
+body.app-theme .report-page .label,
+body.app-theme .report-page .subtitle,
+body.app-theme .report-page .eyebrow,
+body.app-theme .report-page .empty-state {
+  color: var(--ui-ink-700);
+}
+
+body.app-theme .report-page .btn.primary {
+  color: #ffffff;
+}
+
+body.app-theme .interview-container {
+  background: transparent;
+}
+
+body.app-theme .interview-container .header,
+body.app-theme .interview-container .answer-box,
+body.app-theme .interview-container .controls {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--ui-line);
+  border-radius: 14px;
+  color: var(--ui-ink-900);
+}
+
+body.app-theme .interview-container .room {
+  padding-top: 8px;
+}
+
+body.app-theme .interview-container .panel {
+  background: linear-gradient(155deg, #ffffff, #edf4fb);
+}
+
+body.app-theme .interview-container .hint,
+body.app-theme .interview-container .label,
+body.app-theme .interview-container .coach-tip {
+  color: var(--ui-ink-700);
+}
+
+body.app-theme .interview-container .answer-text,
+body.app-theme .interview-container .typed-answer,
+body.app-theme .interview-container .mic-meter {
+  background: #ffffff;
+  border: 1px solid #cbd9e6;
+  color: var(--ui-ink-900);
+}
+
+body.app-theme .interview-container #stopAnswer,
+body.app-theme .interview-container .end-btn {
+  background: linear-gradient(120deg, #c43e3e, #db5858);
+}
+
+body.app-theme .setup-container {
+  background: linear-gradient(155deg, #ffffff, #edf4fb);
+  border: 1px solid var(--ui-line);
+  color: var(--ui-ink-900);
+}
+
+body.app-theme .setup-container .subtitle,
+body.app-theme .setup-container .help-text,
+body.app-theme .setup-container .status-text,
+body.app-theme .setup-container .back-link {
+  color: var(--ui-ink-700);
+}
+
+body.app-theme .setup-container .secondary-btn {
+  background: #ffffff;
+  color: #24455f;
+  border: 1px solid #bfd3e2;
+}
+
+body.app-theme .setup-container .start-btn {
+  color: #ffffff;
+}
+
+body.app-theme {
+  --page-bg: #f3f6fb;
+  --card-bg: #ffffff;
+  --text: #102742;
+  --muted: #5f7389;
+  --line: #d7e2ec;
+  --accent: #0d7f70;
+  --accent-2: #f39c36;
+  --sidebar-a: #0e3d56;
+  --sidebar-b: #126f68;
+}
+
+@media (max-width: 920px) {
+  body.app-theme .header {
+    margin: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.app-theme * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
