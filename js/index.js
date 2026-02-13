@@ -103,6 +103,7 @@ function setupRevealAnimations() {
   const selector = [
     ".hero-content",
     ".hero-image",
+    ".snapshot-card",
     ".feature-card",
     ".mode-card",
     ".role",
@@ -111,6 +112,7 @@ function setupRevealAnimations() {
     ".security-list li",
     ".tech-grid span",
     ".faq-item",
+    ".testimonial-card",
     ".cta"
   ].join(",");
 
