@@ -310,6 +310,7 @@ button:focus-visible {
 }
 
 .modes,
+.paths,
 .how,
 .security {
   background: linear-gradient(180deg, rgba(17, 153, 133, 0.06), rgba(243, 156, 54, 0.05));
@@ -317,6 +318,7 @@ button:focus-visible {
 
 .feature-grid,
 .mode-grid,
+.path-grid,
 .role-grid,
 .feedback-grid,
 .tech-grid {
@@ -327,6 +329,7 @@ button:focus-visible {
 
 .feature-card,
 .mode-card,
+.path-card,
 .feedback-card,
 .role,
 .step,
@@ -339,6 +342,7 @@ button:focus-visible {
 
 .feature-card,
 .mode-card,
+.path-card,
 .feedback-card,
 .role {
   padding: 28px;
@@ -348,6 +352,7 @@ button:focus-visible {
 
 .feature-card:hover,
 .mode-card:hover,
+.path-card:hover,
 .feedback-card:hover,
 .role:hover {
   transform: translateY(-6px);
@@ -355,7 +360,8 @@ button:focus-visible {
 }
 
 .feature-card h3,
-.mode-card h3 {
+.mode-card h3,
+.path-card h3 {
   margin-bottom: 10px;
 }
 
