@@ -55,6 +55,12 @@ body {
   font-size: clamp(1.3rem, 2.4vw, 1.75rem);
 }
 
+.header-copy {
+  margin-top: 6px;
+  color: #587088;
+  font-size: 0.93rem;
+}
+
 .content {
   padding: 18px 34px 34px;
 }
