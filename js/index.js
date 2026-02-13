@@ -106,6 +106,7 @@ function setupRevealAnimations() {
     ".snapshot-card",
     ".feature-card",
     ".mode-card",
+    ".path-card",
     ".role",
     ".step",
     ".feedback-card",
