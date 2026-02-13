@@ -38,6 +38,7 @@ const completionFieldConfig = [
 ];
 
 const welcomeEl = document.getElementById("welcomeText");
+const dashboardSubtitleEl = document.getElementById("dashboardSubtitle");
 const profileStatusEl = document.getElementById("profileStatus");
 const profileProgressEl = document.getElementById("profileProgress");
 const profilePercentEl = document.getElementById("profilePercent");
@@ -63,6 +64,16 @@ if (openPracticeHubBtn) {
 
 if (welcomeEl) {
   welcomeEl.innerText = `Welcome, ${user?.name || user?.email || "Candidate"}`;
+}
+
+if (dashboardSubtitleEl) {
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
+  dashboardSubtitleEl.innerText = `Track progress, close profile gaps, and stay interview-ready. ${dateLabel}`;
 }
 
 function updateQuickValue(id, value) {
