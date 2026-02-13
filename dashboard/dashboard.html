@@ -37,11 +37,30 @@
   <div class="content">
     <div class="welcome" id="welcomeText">Welcome</div>
 
+    <section class="overview-grid" aria-label="Today at a glance">
+      <article class="overview-card">
+        <p class="overview-label">Profile Completion</p>
+        <p class="overview-value" id="quickProfilePercent">0%</p>
+      </article>
+      <article class="overview-card">
+        <p class="overview-label">Readiness</p>
+        <p class="overview-value" id="quickReadiness">Low</p>
+      </article>
+      <article class="overview-card">
+        <p class="overview-label">Weekly Progress</p>
+        <p class="overview-value" id="quickWeeklyGoal">0/0</p>
+      </article>
+      <article class="overview-card">
+        <p class="overview-label">Current Streak</p>
+        <p class="overview-value" id="quickStreak">0 days</p>
+      </article>
+    </section>
+
     <div class="cards">
 
       <div class="card">
         <h3>Profile Status</h3>
-        <div class="status" id="profileStatus">Checking...</div>
+        <div class="status-badge status-neutral" id="profileStatus">Checking...</div>
       </div>
 
       <div class="card">
@@ -61,7 +80,7 @@
 
       <div class="card">
         <h3>Interview Readiness</h3>
-        <strong id="readinessLevel">Low</strong>
+        <strong id="readinessLevel" class="readiness-pill readiness-low">Low</strong>
         <p id="readinessMsg">Complete your profile</p>
       </div>
 
@@ -83,12 +102,19 @@
         </button>
       </div>
 
+      <div class="card">
+        <h3>Profile Gaps</h3>
+        <ul class="gap-list" id="profileGapsList">
+          <li>Loading your profile fields...</li>
+        </ul>
+      </div>
+
       <div class="card highlight">
         <h3>AI Suggestions</h3>
-        <ul>
-          <li>Improve technical skills depth</li>
-          <li>Practice mock interviews consistently</li>
-          <li>Review feedback reports weekly</li>
+        <ul id="aiSuggestionsList">
+          <li>Review your profile and weekly goals.</li>
+          <li>Practice mock interviews consistently.</li>
+          <li>Track progress from your reports.</li>
         </ul>
       </div>
 
