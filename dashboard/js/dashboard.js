@@ -47,6 +47,8 @@ const readinessLevelEl = document.getElementById("readinessLevel");
 const readinessMsgEl = document.getElementById("readinessMsg");
 const profileGapsListEl = document.getElementById("profileGapsList");
 const aiSuggestionsListEl = document.getElementById("aiSuggestionsList");
+const careerSnapshotListEl = document.getElementById("careerSnapshotList");
+const activityInsightsListEl = document.getElementById("activityInsightsList");
 
 const startInterviewBtn = document.getElementById("startInterviewBtn");
 if (startInterviewBtn) {
@@ -81,6 +83,103 @@ function updateQuickValue(id, value) {
   const el = document.getElementById(id);
   if (!el) return;
   el.innerText = value;
+}
+
+function formatDateLabel(value) {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return "Not available";
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function renderInfoList(listEl, items, fallbackText) {
+  if (!listEl) return;
+  listEl.innerHTML = "";
+
+  if (!Array.isArray(items) || !items.length) {
+    const fallback = document.createElement("li");
+    fallback.innerText = fallbackText;
+    listEl.appendChild(fallback);
+    return;
+  }
+
+  items.forEach((item) => {
+    const row = document.createElement("li");
+    row.className = "info-item";
+
+    const label = document.createElement("span");
+    label.className = "info-label";
+    label.innerText = item.label;
+
+    const value = document.createElement("strong");
+    value.className = "info-value";
+    value.innerText = item.value;
+
+    row.appendChild(label);
+    row.appendChild(value);
+    listEl.appendChild(row);
+  });
+}
+
+function renderCareerSnapshot(profile) {
+  const yearsRaw = Number(profile?.experienceYears);
+  const yearsValue = Number.isFinite(yearsRaw)
+    ? `${yearsRaw} year${yearsRaw === 1 ? "" : "s"}`
+    : normalizeText(profile?.experienceYears) || "Not set";
+
+  renderInfoList(
+    careerSnapshotListEl,
+    [
+      { label: "Target role", value: normalizeText(profile?.role) || "Not set" },
+      { label: "Interview type", value: normalizeText(profile?.interviewType) || "Not set" },
+      { label: "Experience", value: yearsValue },
+      { label: "Language", value: normalizeText(profile?.language) || "Not set" },
+      { label: "Availability", value: normalizeText(profile?.availability) || "Not set" }
+    ],
+    "Complete your profile to unlock career highlights."
+  );
+}
+
+function renderActivityInsights(input) {
+  const sessions = Array.isArray(input?.sessions) ? input.sessions : [];
+  const events = Array.isArray(input?.events) ? input.events : [];
+  const progress = input?.progress || null;
+  const totalInterviewsTracked = Number(input?.totalInterviewsTracked) || 0;
+
+  let latestSessionAt = 0;
+  sessions.forEach((session) => {
+    const dateValue = session?.endedAt || session?.startedAt;
+    const timestamp = new Date(dateValue).getTime();
+    if (Number.isFinite(timestamp)) {
+      latestSessionAt = Math.max(latestSessionAt, timestamp);
+    }
+  });
+
+  const latestEventAt = events.length ? new Date(events[0]?.date).getTime() : 0;
+  const completedSessions = sessions.filter((session) => normalizeText(session?.endedAt)).length;
+  const completionRate = sessions.length
+    ? `${Math.round((completedSessions / sessions.length) * 100)}%`
+    : "--";
+
+  const thisWeekValue = progress
+    ? `${progress.interviewsThisWeek} interviews, ${progress.questionsThisWeek} questions`
+    : "Practice tracker unavailable";
+
+  renderInfoList(
+    activityInsightsListEl,
+    [
+      { label: "Total interviews", value: String(totalInterviewsTracked) },
+      { label: "Completed sessions", value: String(completedSessions) },
+      { label: "Completion rate", value: completionRate },
+      { label: "This week", value: thisWeekValue },
+      { label: "Last interview", value: latestSessionAt ? formatDateLabel(latestSessionAt) : "No sessions yet" },
+      { label: "Last practice log", value: latestEventAt ? formatDateLabel(latestEventAt) : "No logs yet" }
+    ],
+    "Start one interview to see activity insights."
+  );
 }
 
 function setStatusBadge(status, text) {
@@ -219,6 +318,7 @@ async function loadDashboard() {
   if (!api) {
     setStatusBadge("warning", "Backend unavailable");
     setReadiness("Low");
+    renderCareerSnapshot(null);
     renderProfileGaps(["Name", "Role", "Skills"]);
     renderSuggestions({ readiness: "Low", missingFields: ["Name", "Role", "Skills"], hasSkills: false });
     return;
@@ -231,6 +331,7 @@ async function loadDashboard() {
     if (!res.ok || !profile) {
       setStatusBadge("warning", profile?.error || "Profile incomplete");
       setReadiness("Low");
+      renderCareerSnapshot(null);
       renderProfileGaps(["Name", "Role", "Skills"]);
       renderSuggestions({ readiness: "Low", missingFields: ["Name", "Role", "Skills"], hasSkills: false });
       return;
@@ -247,6 +348,7 @@ async function loadDashboard() {
 
     const skills = extractSkills(profile.skills);
     renderSkills(skills);
+    renderCareerSnapshot(profile);
 
     const missingFields = completionFieldConfig
       .filter((field) => !isFieldComplete(profile, field.key))
@@ -266,6 +368,7 @@ async function loadDashboard() {
     console.error("Dashboard load failed", error);
     setStatusBadge("warning", "Could not load profile");
     setReadiness("Low");
+    renderCareerSnapshot(null);
   }
 }
 
@@ -273,16 +376,8 @@ async function loadWeeklyGoal() {
   const weeklyGoalFill = document.getElementById("weeklyGoalFill");
   const weeklyGoalText = document.getElementById("weeklyGoalText");
   if (!weeklyGoalFill || !weeklyGoalText) return;
-
-  if (!practice) {
-    weeklyGoalText.innerText = "Practice tracking unavailable";
-    updateQuickValue("quickWeeklyGoal", "--");
-    updateQuickValue("quickStreak", "--");
-    return;
-  }
-
-  const goals = practice.getGoals();
-  const events = practice.getPracticeEvents();
+  const goals = practice ? practice.getGoals() : null;
+  const events = practice ? practice.getPracticeEvents() : [];
   let sessions = [];
 
   if (api) {
@@ -295,6 +390,31 @@ async function loadWeeklyGoal() {
     } catch {
       // Continue with local data only.
     }
+  }
+
+  const sessionIdSet = new Set(
+    sessions.map((session) => normalizeText(session?._id)).filter(Boolean)
+  );
+  const additionalEvents = events.filter((event) => {
+    const sessionId = normalizeText(event?.sessionId);
+    return !sessionId || !sessionIdSet.has(sessionId);
+  }).length;
+  const totalInterviewsTracked = sessions.length + additionalEvents;
+  updateQuickValue("quickTotalInterviews", String(totalInterviewsTracked));
+
+  if (!practice || !goals) {
+    weeklyGoalFill.style.width = "0%";
+    weeklyGoalText.innerText = "Practice tracking unavailable";
+    updateQuickValue("quickWeeklyGoal", "--");
+    updateQuickValue("quickStreak", "--");
+    updateQuickValue("quickQuestionsWeek", "--");
+    renderActivityInsights({
+      sessions,
+      events,
+      progress: null,
+      totalInterviewsTracked
+    });
+    return;
   }
 
   const progress = practice.calculateWeeklyProgress({
@@ -311,6 +431,13 @@ async function loadWeeklyGoal() {
   const streakLabel = `${progress.streakDays} day${progress.streakDays === 1 ? "" : "s"}`;
   updateQuickValue("quickWeeklyGoal", `${progress.interviewsThisWeek}/${progress.interviewGoal}`);
   updateQuickValue("quickStreak", streakLabel);
+  updateQuickValue("quickQuestionsWeek", `${progress.questionsThisWeek}/${progress.questionGoal}`);
+  renderActivityInsights({
+    sessions,
+    events,
+    progress,
+    totalInterviewsTracked
+  });
 }
 
 loadDashboard();
