@@ -8,45 +8,54 @@ if (!user || !user.id || !interviewConfig) {
   window.location.href = "../dashboard/dashboard.html";
 }
 
-/* ================= CAMERA ================= */
-const video = document.getElementById("userVideo");
-let userStream = null;
-
-navigator.mediaDevices.getUserMedia({
-  video: { facingMode: "user" },
-  audio: {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true
-  }
-})
-  .then(stream => {
-    userStream = stream;
-    video.srcObject = stream;
-    setupMicMeter(stream);
-  })
-  .catch(() => alert("Camera and mic permission required"));
-
 /* ================= UI ELEMENTS ================= */
 const aiText = document.getElementById("aiText");
 const answerText = document.getElementById("answerText");
 const aiAvatar = document.getElementById("aiAvatar");
 const coachTipEl = document.getElementById("coachTip");
 const progressText = document.getElementById("progressText");
-const startAnswerBtn = document.getElementById("startAnswer");
-const stopAnswerBtn = document.getElementById("stopAnswer");
+const sessionTimerEl = document.getElementById("sessionTimer");
+const liveStateEl = document.getElementById("liveState");
+const responseStatusEl = document.getElementById("responseStatus");
+const answerToggleBtn = document.getElementById("answerToggleBtn");
 const typedAnswerEl = document.getElementById("typedAnswer");
+const typedFallbackEl = document.getElementById("typedFallback");
 const submitTypedBtn = document.getElementById("submitTyped");
 const micLevelEl = document.getElementById("micLevel");
-const repeatQuestionBtn = document.getElementById("repeatQuestion");
-const skipQuestionBtn = document.getElementById("skipQuestion");
 const endInterviewBtn = document.getElementById("endInterviewBtn");
+
+/* ================= CAMERA ================= */
+const video = document.getElementById("userVideo");
+let userStream = null;
+
+if (navigator.mediaDevices?.getUserMedia) {
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user" },
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true
+    }
+  })
+    .then((stream) => {
+      userStream = stream;
+      if (video) video.srcObject = stream;
+      setupMicMeter(stream);
+    })
+    .catch(() => {
+      requestMicActivation({ allowTypedFallback: true });
+    });
+} else {
+  requestMicActivation({ allowTypedFallback: true });
+}
+
 let isCapturing = false;
 let micActivationPending = false;
 let shouldSubmitOnEnd = false;
 let aiAudioEl = null;
 let aiAudioObjectUrl = "";
 let aiSpeechFetchController = null;
+let browserSpeechToken = 0;
 let neuralVoiceAttemptEnabled = true;
 let candidateSpeechLocale = "en-US";
 const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -57,6 +66,7 @@ let mediaRecorder = null;
 let mediaChunks = [];
 let mediaRecorderMimeType = "";
 let preferRecorderMode = false;
+let forceTypedFallback = false;
 
 /* ================= AI AVATAR STATES ================= */
 function setAIState(state) {
@@ -66,6 +76,21 @@ function setAIState(state) {
     thinking: "assets/ai-thinking.json"
   };
   if (aiAvatar) aiAvatar.setAttribute("src", states[state]);
+  document.body.dataset.aiState = state;
+
+  if (!liveStateEl) return;
+
+  if (state === "thinking") {
+    liveStateEl.innerText = "Interviewer is preparing the next question";
+    return;
+  }
+
+  if (state === "speaking") {
+    liveStateEl.innerText = "Interviewer speaking";
+    return;
+  }
+
+  liveStateEl.innerText = "Your turn to answer";
 }
 
 /* ================= AUDIO METER ================= */
@@ -144,6 +169,37 @@ async function ensureAudioContextRunning() {
   }
 }
 
+function setResponseStatus(text) {
+  if (responseStatusEl) responseStatusEl.innerText = text;
+}
+
+let interviewStartedAtMs = 0;
+let timerIntervalId = null;
+
+function formatElapsedTime(ms) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function refreshTimer() {
+  if (!sessionTimerEl || !interviewStartedAtMs) return;
+  sessionTimerEl.innerText = formatElapsedTime(Date.now() - interviewStartedAtMs);
+}
+
+function startTimer() {
+  interviewStartedAtMs = Date.now();
+  clearInterval(timerIntervalId);
+  refreshTimer();
+  timerIntervalId = setInterval(refreshTimer, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerIntervalId);
+  timerIntervalId = null;
+}
+
 /* ================= AI SPEECH ================= */
 function getSpeechLocaleFromProfileLanguage(value) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -202,6 +258,8 @@ function cleanupNeuralAudio() {
 }
 
 function stopAISpeechOutput() {
+  browserSpeechToken += 1;
+
   if (aiSpeechFetchController) {
     try {
       aiSpeechFetchController.abort();
@@ -239,28 +297,85 @@ function pickBrowserVoice(locale) {
   return byPrefix || null;
 }
 
-function speakWithBrowserVoice(text, onEnd) {
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = candidateSpeechLocale;
-  utterance.rate = 0.98;
-  utterance.pitch = 1.0;
+function normalizeSpokenText(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .replace(/\s([?.!,;:])/g, "$1")
+    .trim();
+}
 
-  const preferredVoice = pickBrowserVoice(candidateSpeechLocale);
-  if (preferredVoice) {
-    utterance.voice = preferredVoice;
+function splitTextForSpeech(text) {
+  const normalized = normalizeSpokenText(text);
+  if (!normalized) return [];
+
+  const sentenceChunks = normalized.match(/[^.!?]+[.!?]*/g) || [normalized];
+  const chunks = [];
+  let buffer = "";
+
+  sentenceChunks.forEach((chunkRaw) => {
+    const chunk = chunkRaw.trim();
+    if (!chunk) return;
+
+    if (!buffer) {
+      buffer = chunk;
+      return;
+    }
+
+    if ((`${buffer} ${chunk}`).length <= 180) {
+      buffer = `${buffer} ${chunk}`;
+    } else {
+      chunks.push(buffer);
+      buffer = chunk;
+    }
+  });
+
+  if (buffer) chunks.push(buffer);
+  return chunks;
+}
+
+function speakWithBrowserVoice(text, onEnd) {
+  const chunks = splitTextForSpeech(text);
+  if (!chunks.length) {
+    setAIState("idle");
+    if (typeof onEnd === "function") onEnd();
+    return;
   }
 
-  utterance.onend = () => {
-    setAIState("idle");
-    if (typeof onEnd === "function") onEnd();
+  const speechToken = browserSpeechToken;
+  const preferredVoice = pickBrowserVoice(candidateSpeechLocale);
+  let index = 0;
+
+  const speakNextChunk = () => {
+    if (speechToken !== browserSpeechToken) return;
+
+    if (index >= chunks.length) {
+      setAIState("idle");
+      if (typeof onEnd === "function") onEnd();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(chunks[index]);
+    utterance.lang = candidateSpeechLocale;
+    utterance.rate = 0.97;
+    utterance.pitch = 1.0;
+    if (preferredVoice) utterance.voice = preferredVoice;
+
+    utterance.onend = () => {
+      if (speechToken !== browserSpeechToken) return;
+      index += 1;
+      speakNextChunk();
+    };
+
+    utterance.onerror = () => {
+      if (speechToken !== browserSpeechToken) return;
+      index += 1;
+      speakNextChunk();
+    };
+
+    speechSynthesis.speak(utterance);
   };
 
-  utterance.onerror = () => {
-    setAIState("idle");
-    if (typeof onEnd === "function") onEnd();
-  };
-
-  speechSynthesis.speak(utterance);
+  speakNextChunk();
 }
 
 async function fetchNeuralSpeechAudioUrl(text) {
@@ -307,8 +422,9 @@ async function fetchNeuralSpeechAudioUrl(text) {
 function speak(text, onEnd) {
   stopAISpeechOutput();
   setAIState("speaking");
+  const speechToken = browserSpeechToken;
 
-  const clean = String(text || "").trim();
+  const clean = normalizeSpokenText(text);
   if (!clean) {
     setAIState("idle");
     if (typeof onEnd === "function") onEnd();
@@ -319,6 +435,8 @@ function speak(text, onEnd) {
 
   fetchNeuralSpeechAudioUrl(clean)
     .then((audioUrl) => {
+      if (speechToken !== browserSpeechToken) return;
+
       if (!audioUrl) {
         fallback();
         return;
@@ -329,17 +447,20 @@ function speak(text, onEnd) {
       aiAudioEl.preload = "auto";
 
       aiAudioEl.onended = () => {
+        if (speechToken !== browserSpeechToken) return;
         cleanupNeuralAudio();
         setAIState("idle");
         if (typeof onEnd === "function") onEnd();
       };
 
       aiAudioEl.onerror = () => {
+        if (speechToken !== browserSpeechToken) return;
         cleanupNeuralAudio();
         fallback();
       };
 
       aiAudioEl.play().catch(() => {
+        if (speechToken !== browserSpeechToken) return;
         cleanupNeuralAudio();
         fallback();
       });
@@ -408,9 +529,21 @@ function canCaptureVoice() {
 }
 
 function setAnswerControls({ canStart, canStop, canSubmitTyped }) {
-  if (startAnswerBtn) startAnswerBtn.disabled = !canStart;
-  if (stopAnswerBtn) stopAnswerBtn.disabled = !canStop;
+  const isRecording = !!canStop;
+  const canUsePrimaryControl = !!(canStart || canStop);
+
+  if (answerToggleBtn) {
+    answerToggleBtn.disabled = !canUsePrimaryControl;
+    answerToggleBtn.innerText = isRecording ? "Finish Answer" : "Start Answer";
+    answerToggleBtn.classList.toggle("recording", isRecording);
+    answerToggleBtn.setAttribute("aria-pressed", String(isRecording));
+  }
+
   if (submitTypedBtn) submitTypedBtn.disabled = !canSubmitTyped;
+
+  if (typedFallbackEl) {
+    typedFallbackEl.hidden = !(canSubmitTyped && (forceTypedFallback || !canCaptureVoice()));
+  }
 }
 
 /* ================= INTERVIEW STATE ================= */
@@ -421,6 +554,7 @@ let currentQuestion = "";
 let currentQuestionJson = null;
 let currentCoachTip = "";
 let currentQuestionAskedAt = null;
+let isAnswerWindowOpen = false;
 let currentSessionId = null;
 currentSessionId = localStorage.getItem("currentInterviewSessionId") || null;
 
@@ -435,7 +569,7 @@ maxQuestions = computeMaxQuestions(interviewConfig.duration);
 function updateProgress() {
   if (!progressText) return;
   if (!questionCount) {
-    progressText.innerText = `Ready | ${maxQuestions}Q`;
+    progressText.innerText = `${maxQuestions} questions`;
     return;
   }
   progressText.innerText = `Q${Math.min(questionCount, maxQuestions)}/${maxQuestions}`;
@@ -443,16 +577,17 @@ function updateProgress() {
 
 setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
 updateProgress();
+setResponseStatus("Waiting for the first question");
 
-if (startAnswerBtn) {
-  startAnswerBtn.addEventListener("click", async () => {
+if (answerToggleBtn) {
+  answerToggleBtn.addEventListener("click", async () => {
     await ensureAudioContextRunning();
+    if (isCapturing) {
+      stopAnswerCapture({ submit: true });
+      return;
+    }
     beginAnswerCapture();
   });
-}
-
-if (stopAnswerBtn) {
-  stopAnswerBtn.addEventListener("click", () => stopAnswerCapture({ submit: true }));
 }
 
 if (submitTypedBtn) {
@@ -462,20 +597,9 @@ if (submitTypedBtn) {
       answerText.innerText = "Type your answer above, then click Submit.";
       return;
     }
+    setResponseStatus("Submitting typed answer");
+    setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
     submitAnswer(typed, { source: "typed" });
-  });
-}
-
-if (repeatQuestionBtn) {
-  repeatQuestionBtn.addEventListener("click", () => {
-    if (currentQuestion) speak(currentQuestion);
-  });
-}
-
-if (skipQuestionBtn) {
-  skipQuestionBtn.addEventListener("click", () => {
-    if (!questionCount || !currentQuestion) return;
-    submitAnswer("Skipped", { source: "skip" });
   });
 }
 
@@ -528,21 +652,26 @@ async function startInterview() {
     recognition.lang = candidateSpeechLocale;
   }
   await startSessionIfPossible();
+  startTimer();
 
   const candidateName = (candidateProfile?.name || user.name || "Candidate").trim();
-  const intro = `Hello ${candidateName}.
-This will be a ${interviewConfig.difficulty} ${interviewConfig.interviewType} interview.
-We will do ${maxQuestions} questions. Click Start Answer when you're ready.`;
+  const interviewType = String(interviewConfig.interviewType || "technical").toLowerCase();
+  const difficulty = String(interviewConfig.difficulty || "standard").toLowerCase();
+  const intro = `Hello ${candidateName}. Welcome to your ${difficulty} ${interviewType} interview.
+I will ask ${maxQuestions} questions. Answer naturally, like a real interview conversation.`;
 
   aiText.innerText = intro;
-  speak(intro, () => setTimeout(askAIQuestion, 500));
+  setResponseStatus("Interviewer introduction");
+  speak(intro, () => setTimeout(askAIQuestion, 450));
 }
 
 setTimeout(() => {
   startInterview().catch((err) => {
     console.error("Interview start failed:", err);
+    stopTimer();
     setAIState("idle");
     aiText.innerText = "Unable to start interview. Please refresh and try again.";
+    setResponseStatus("Unable to start interview");
   });
 }, 1500);
 
@@ -555,6 +684,9 @@ async function askAIQuestion() {
 
   try {
     setAIState("thinking");
+    isAnswerWindowOpen = false;
+    setResponseStatus("Interviewer is preparing a question");
+    setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
     const lastEntry = interviewLog[interviewLog.length - 1];
 
     const res = await window.InterviewAI.api.fetch("/interview/question", {
@@ -602,7 +734,10 @@ async function askAIQuestion() {
 
     aiText.innerText = currentQuestion;
     speak(currentQuestion, () => {
-      answerText.innerText = "Click Start Answer and speak, or type your answer and submit.";
+      if (canCaptureVoice()) forceTypedFallback = false;
+      isAnswerWindowOpen = true;
+      answerText.innerText = "Click Start Answer and speak your response clearly.";
+      setResponseStatus("Your turn to answer");
       setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       setAIState("idle");
     });
@@ -611,6 +746,7 @@ async function askAIQuestion() {
     console.error("Question error:", err);
     aiText.innerText = normalizeApiErrorMessage(err?.message, "Failed to get question");
     setAIState("idle");
+    setResponseStatus("Unable to load question");
   }
 }
 
@@ -703,17 +839,20 @@ function initSpeechRecognition() {
 
     const trimmedAnswer = (finalAnswer.trim() || latestTranscript.trim());
     if (!submit) {
+      setResponseStatus("Answer capture paused");
       setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       return;
     }
 
     if (!trimmedAnswer) {
-      answerText.innerText = "No speech detected. Click Start Answer and try again, or type your answer.";
+      answerText.innerText = "No clear speech detected. Please try the answer again.";
+      setResponseStatus("No response captured");
       setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       return;
     }
 
     setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
+    setResponseStatus("Submitting your answer");
     submitAnswer(trimmedAnswer, { source: "speech" });
   };
 
@@ -724,15 +863,17 @@ function initSpeechRecognition() {
     if ((event?.error === "not-allowed" || event?.error === "service-not-allowed") && canUseMediaRecorder()) {
       preferRecorderMode = true;
       answerText.innerText = "Speech API blocked. Switching to recorder mode...";
+      setResponseStatus("Switching recorder mode");
       if (startRecorderCapture()) return;
     }
 
     if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
-      requestMicActivation();
+      requestMicActivation({ allowTypedFallback: true });
       return;
     }
 
-    answerText.innerText = "Microphone error. Please refresh and allow mic access.";
+    answerText.innerText = "Microphone error. Allow microphone access and try again.";
+    setResponseStatus("Microphone unavailable");
     setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
   };
 }
@@ -750,35 +891,41 @@ async function handleRecorderStop() {
   mediaRecorder = null;
 
   if (!submit) {
+    setResponseStatus("Answer capture paused");
     setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
     return;
   }
 
   if (!blob || !blob.size) {
-    answerText.innerText = "No speech detected. Click Start Answer and try again, or type your answer.";
+    answerText.innerText = "No clear speech detected. Please try the answer again.";
+    setResponseStatus("No response captured");
     setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
     return;
   }
 
   setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
   answerText.innerText = "Transcribing your voice answer...";
+  setResponseStatus("Transcribing response");
 
   try {
     const transcript = await transcribeRecordedAudio(blob);
     if (!transcript) {
-      answerText.innerText = "No speech detected. Try again or type your answer.";
+      answerText.innerText = "No clear speech detected. Please try the answer again.";
+      setResponseStatus("No response captured");
       setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       return;
     }
 
     latestTranscript = transcript;
     answerText.innerText = transcript;
+    setResponseStatus("Submitting your answer");
     submitAnswer(transcript, { source: "speech" });
   } catch (err) {
     answerText.innerText = normalizeApiErrorMessage(
       err?.message,
       "Voice transcription failed"
     );
+    setResponseStatus("Voice transcription failed");
     setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
   }
 }
@@ -815,12 +962,14 @@ function startRecorderCapture() {
     mediaChunks = [];
     mediaRecorder = null;
     answerText.innerText = "Recording failed. Please try again or type your answer.";
+    setResponseStatus("Recording failed");
     setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
   };
 
   mediaRecorder.onstop = () => {
     handleRecorderStop().catch(() => {
       answerText.innerText = "Voice transcription failed";
+      setResponseStatus("Voice transcription failed");
       setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
     });
   };
@@ -828,7 +977,9 @@ function startRecorderCapture() {
   isCapturing = true;
   shouldSubmitOnEnd = true;
   silenceStartedAt = null;
+  forceTypedFallback = false;
   answerText.innerText = "Listening...";
+  setResponseStatus("Recording your answer");
   setAnswerControls({ canStart: false, canStop: true, canSubmitTyped: false });
 
   try {
@@ -843,17 +994,25 @@ function startRecorderCapture() {
   }
 }
 
-function requestMicActivation() {
+function requestMicActivation({ allowTypedFallback = true } = {}) {
   if (micActivationPending) return;
   micActivationPending = true;
+  forceTypedFallback = allowTypedFallback || !canCaptureVoice();
+  const canAnswerNow = isAnswerWindowOpen;
 
   if (!canCaptureVoice()) {
     answerText.innerText = "Voice input is unavailable in this browser. Type your answer instead.";
+    setResponseStatus("Typed input mode");
   } else {
     answerText.innerText = "Microphone permission required. Allow mic access, then click Start Answer.";
+    setResponseStatus("Microphone permission required");
   }
 
-  setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
+  setAnswerControls({
+    canStart: canAnswerNow && canCaptureVoice(),
+    canStop: false,
+    canSubmitTyped: canAnswerNow
+  });
   setTimeout(() => {
     micActivationPending = false;
   }, 1500);
@@ -862,12 +1021,14 @@ function requestMicActivation() {
 function beginAnswerCapture() {
   finalAnswer = "";
   latestTranscript = "";
+  forceTypedFallback = false;
 
   if (canUseSpeechRecognition() && !preferRecorderMode) {
     isCapturing = true;
     shouldSubmitOnEnd = true;
     silenceStartedAt = null;
     answerText.innerText = "Listening...";
+    setResponseStatus("Recording your answer");
     setAnswerControls({ canStart: false, canStop: true, canSubmitTyped: false });
 
     try {
@@ -881,12 +1042,13 @@ function beginAnswerCapture() {
   }
 
   if (startRecorderCapture()) return;
-  requestMicActivation();
+  requestMicActivation({ allowTypedFallback: true });
 }
 
 function stopAnswerCapture({ submit }) {
   shouldSubmitOnEnd = !!submit;
   isCapturing = false;
+  setResponseStatus(submit ? "Processing your answer" : "Answer capture paused");
   setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
 
   if (mediaRecorder && mediaRecorder.state !== "inactive") {
@@ -927,6 +1089,7 @@ async function saveSessionEntry(entry) {
 }
 
 async function submitAnswer(answerValue, { source } = {}) {
+  isAnswerWindowOpen = false;
   const answeredAt = new Date().toISOString();
   const trimmedAnswer = String(answerValue || "").trim();
   const isSkip =
@@ -949,12 +1112,14 @@ async function submitAnswer(answerValue, { source } = {}) {
     await saveSessionEntry({ ...baseEntry, evaluation: feedback, score: null });
 
     answerText.innerText = "Skipping. Moving to the next question...";
+    setResponseStatus("Moving to next question");
     setTimeout(askAIQuestion, 1200);
     return;
   }
 
   try {
     setAIState("thinking");
+    setResponseStatus("AI is evaluating your answer");
     setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
     answerText.innerText = "Answer received. Evaluating in background...";
 
@@ -999,6 +1164,7 @@ async function submitAnswer(answerValue, { source } = {}) {
 
     setAIState("idle");
     answerText.innerText = "Answer saved. Detailed AI feedback will appear in your final report.";
+    setResponseStatus("Answer saved");
     setTimeout(askAIQuestion, 1000);
   } catch (err) {
     console.error("Evaluation error:", err);
@@ -1017,6 +1183,7 @@ async function submitAnswer(answerValue, { source } = {}) {
 
     setAIState("idle");
     answerText.innerText = "Answer saved. AI evaluation was unavailable for this question.";
+    setResponseStatus("Answer saved (evaluation delayed)");
     setTimeout(askAIQuestion, 1000);
   }
 }
@@ -1037,6 +1204,9 @@ function endInterview() {
     // ignore
   }
   isCapturing = false;
+  isAnswerWindowOpen = false;
+  stopTimer();
+  setResponseStatus("Interview complete");
   setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
   if (endInterviewBtn) endInterviewBtn.disabled = true;
 
