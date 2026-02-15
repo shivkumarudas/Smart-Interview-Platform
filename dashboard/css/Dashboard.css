@@ -235,6 +235,41 @@ body {
   line-height: 1.4;
 }
 
+.info-list {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.info-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #d3e0eb;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-label {
+  color: #587088;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex: 1 1 auto;
+}
+
+.info-value {
+  color: #1f4d74;
+  font-size: 0.91rem;
+  text-align: right;
+  max-width: 62%;
+  overflow-wrap: anywhere;
+}
+
 .highlight {
   color: #ffffff;
 }
