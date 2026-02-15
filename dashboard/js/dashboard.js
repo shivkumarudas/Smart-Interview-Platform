@@ -50,6 +50,7 @@ const aiSuggestionsListEl = document.getElementById("aiSuggestionsList");
 
 const startInterviewBtn = document.getElementById("startInterviewBtn");
 if (startInterviewBtn) {
+  startInterviewBtn.disabled = false;
   startInterviewBtn.addEventListener("click", () => {
     window.location.href = "../interview/interview-setup.html";
   });
@@ -218,7 +219,6 @@ async function loadDashboard() {
   if (!api) {
     setStatusBadge("warning", "Backend unavailable");
     setReadiness("Low");
-    if (startInterviewBtn) startInterviewBtn.disabled = true;
     renderProfileGaps(["Name", "Role", "Skills"]);
     renderSuggestions({ readiness: "Low", missingFields: ["Name", "Role", "Skills"], hasSkills: false });
     return;
@@ -231,7 +231,6 @@ async function loadDashboard() {
     if (!res.ok || !profile) {
       setStatusBadge("warning", profile?.error || "Profile incomplete");
       setReadiness("Low");
-      if (startInterviewBtn) startInterviewBtn.disabled = true;
       renderProfileGaps(["Name", "Role", "Skills"]);
       renderSuggestions({ readiness: "Low", missingFields: ["Name", "Role", "Skills"], hasSkills: false });
       return;
@@ -245,7 +244,6 @@ async function loadDashboard() {
     updateQuickValue("quickProfilePercent", `${percent}%`);
 
     setStatusBadge(percent >= 80 ? "success" : "neutral", percent >= 80 ? "Profile completed" : "Profile in progress");
-    if (startInterviewBtn) startInterviewBtn.disabled = false;
 
     const skills = extractSkills(profile.skills);
     renderSkills(skills);
@@ -268,7 +266,6 @@ async function loadDashboard() {
     console.error("Dashboard load failed", error);
     setStatusBadge("warning", "Could not load profile");
     setReadiness("Low");
-    if (startInterviewBtn) startInterviewBtn.disabled = true;
   }
 }
 
