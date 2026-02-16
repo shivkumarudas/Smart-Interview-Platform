@@ -1,5 +1,5 @@
-const axios = require("axios");
 const { tryParseJson } = require("./jsonUtils");
+const { generateGeminiContent, getGeminiModel } = require("./geminiClient");
 
 function truncate(text, maxLen) {
   const value = String(text || "").trim();
@@ -10,11 +10,6 @@ function truncate(text, maxLen) {
 }
 
 async function generateQuestion(profile = {}, config = {}, context = null) {
-  const groqApiKey = process.env.GROQ_API_KEY;
-  if (!groqApiKey) {
-    throw new Error("GROQ_API_KEY is not set");
-  }
-
   const role = profile.role || "Software Developer";
   const skills = profile.skills || "Programming, Problem Solving";
   const experience = profile.experience || "Fresher";
@@ -76,34 +71,20 @@ Rules:
 `;
 
   try {
-    const response = await axios.post(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.6
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${groqApiKey}`,
-          "Content-Type": "application/json"
-        },
-        timeout: 15000
-      }
-    );
+    const result = await generateGeminiContent({
+      parts: [{ text: prompt }],
+      model: getGeminiModel(),
+      temperature: 0.6,
+      timeoutMs: 15000
+    });
 
-    const content = response.data?.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error("Groq returned empty response");
-    }
-
-    const raw = content.trim();
+    const raw = String(result.raw || "").trim();
     return {
       raw,
       json: tryParseJson(raw)
     };
   } catch (err) {
-    console.error("Groq API error:");
+    console.error("Gemini API error:");
     if (err.response) {
       console.error("Status:", err.response.status);
       console.error("Data:", err.response.data);
@@ -115,4 +96,3 @@ Rules:
 }
 
 module.exports = { generateQuestion };
-
