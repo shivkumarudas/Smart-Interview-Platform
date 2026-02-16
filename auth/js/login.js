@@ -45,6 +45,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       localStorage.setItem("user", JSON.stringify(data.user));
+      if (data?.token) {
+        localStorage.setItem("INTERVIEWAI_AUTH_TOKEN", String(data.token));
+      } else {
+        localStorage.removeItem("INTERVIEWAI_AUTH_TOKEN");
+      }
+      localStorage.removeItem("authToken");
       window.location.href = "../dashboard/dashboard.html";
     } catch (err) {
       console.error(err);
