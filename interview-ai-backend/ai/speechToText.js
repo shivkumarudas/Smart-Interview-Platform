@@ -1,10 +1,10 @@
 const OpenAI = require("openai");
 const { toFile } = require("openai/uploads");
+const { generateGeminiContent, hasGeminiApiKey, getGeminiModel } = require("./geminiClient");
 
 const MAX_AUDIO_BYTES = 6 * 1024 * 1024;
 
 let cachedOpenAIClient = null;
-let cachedGroqClient = null;
 
 function getOpenAIClient() {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
@@ -14,19 +14,6 @@ function getOpenAIClient() {
     cachedOpenAIClient = new OpenAI({ apiKey });
   }
   return cachedOpenAIClient;
-}
-
-function getGroqClient() {
-  const apiKey = String(process.env.GROQ_API_KEY || "").trim();
-  if (!apiKey) return null;
-
-  if (!cachedGroqClient) {
-    cachedGroqClient = new OpenAI({
-      apiKey,
-      baseURL: "https://api.groq.com/openai/v1"
-    });
-  }
-  return cachedGroqClient;
 }
 
 function getTranscriptionProvider() {
@@ -39,12 +26,10 @@ function getTranscriptionProvider() {
     };
   }
 
-  const groqClient = getGroqClient();
-  if (groqClient) {
+  if (hasGeminiApiKey()) {
     return {
-      provider: "groq",
-      model: String(process.env.GROQ_STT_MODEL || "whisper-large-v3-turbo").trim(),
-      client: groqClient
+      provider: "gemini",
+      model: String(process.env.GEMINI_STT_MODEL || getGeminiModel()).trim()
     };
   }
 
@@ -105,20 +90,57 @@ async function transcribeSpeech({ audioBuffer, mimeType, language, prompt }) {
     throw err;
   }
 
-  const audioFile = await toFile(
-    audioBuffer,
-    `candidate-answer.${extensionFromMimeType(mimeType)}`,
-    { type: String(mimeType || "audio/webm").trim() || "audio/webm" }
-  );
+  let text = "";
+  if (provider.provider === "openai") {
+    const audioFile = await toFile(
+      audioBuffer,
+      `candidate-answer.${extensionFromMimeType(mimeType)}`,
+      { type: String(mimeType || "audio/webm").trim() || "audio/webm" }
+    );
 
-  const response = await provider.client.audio.transcriptions.create({
-    file: audioFile,
-    model: provider.model,
-    language: normalizeLanguage(language),
-    prompt: cleanPrompt(prompt)
-  });
+    const response = await provider.client.audio.transcriptions.create({
+      file: audioFile,
+      model: provider.model,
+      language: normalizeLanguage(language),
+      prompt: cleanPrompt(prompt)
+    });
 
-  const text = String(response?.text || "").trim();
+    text = String(response?.text || "").trim();
+  } else {
+    const cleanLanguage = normalizeLanguage(language);
+    const languageHint = cleanLanguage
+      ? `Language hint: ${cleanLanguage}.`
+      : "Language hint: auto-detect.";
+
+    const contextPrompt = cleanPrompt(prompt);
+    const instruction = [
+      "You are a speech-to-text engine for interview answers.",
+      "Transcribe the audio faithfully.",
+      "Return only transcript text with no extra explanation.",
+      languageHint,
+      contextPrompt ? `Context hint: ${contextPrompt}.` : ""
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const result = await generateGeminiContent({
+      parts: [
+        { text: instruction },
+        {
+          inlineData: {
+            mimeType: String(mimeType || "audio/webm").trim() || "audio/webm",
+            data: audioBuffer.toString("base64")
+          }
+        }
+      ],
+      model: provider.model,
+      temperature: 0,
+      timeoutMs: 30000
+    });
+
+    text = String(result?.raw || "").trim();
+  }
+
   if (!text) {
     throw new Error("Transcription returned empty text");
   }
