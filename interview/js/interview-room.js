@@ -28,36 +28,14 @@ const endInterviewBtn = document.getElementById("endInterviewBtn");
 const video = document.getElementById("userVideo");
 let userStream = null;
 
-if (navigator.mediaDevices?.getUserMedia) {
-  navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user" },
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
-    }
-  })
-    .then((stream) => {
-      userStream = stream;
-      if (video) video.srcObject = stream;
-      setupMicMeter(stream);
-    })
-    .catch(() => {
-      requestMicActivation({ allowTypedFallback: true });
-    });
-} else {
-  requestMicActivation({ allowTypedFallback: true });
-}
-
 let isCapturing = false;
 let micActivationPending = false;
 let shouldSubmitOnEnd = false;
-let aiAudioEl = null;
-let aiAudioObjectUrl = "";
-let aiSpeechFetchController = null;
 let browserSpeechToken = 0;
-let neuralVoiceAttemptEnabled = true;
 let candidateSpeechLocale = "en-US";
+let activeAiAudio = null;
+let activeAiAudioUrl = "";
+let activeTtsRequestController = null;
 const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 let recognition = null;
 let finalAnswer = "";
@@ -67,6 +45,97 @@ let mediaChunks = [];
 let mediaRecorderMimeType = "";
 let preferRecorderMode = false;
 let forceTypedFallback = false;
+const MIC_AUDIO_CONSTRAINTS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true
+};
+
+function getLiveAudioTrack(stream) {
+  if (!stream || typeof stream.getAudioTracks !== "function") return null;
+  return stream.getAudioTracks().find((track) => track?.readyState === "live") || null;
+}
+
+function getLiveVideoTrack(stream) {
+  if (!stream || typeof stream.getVideoTracks !== "function") return null;
+  return stream.getVideoTracks().find((track) => track?.readyState === "live") || null;
+}
+
+function applyUserStream(stream, { clearVideoIfMissing = false } = {}) {
+  userStream = stream || null;
+
+  if (!video) return;
+
+  const hasLiveVideo = !!getLiveVideoTrack(stream);
+  if (hasLiveVideo) {
+    video.srcObject = stream;
+    return;
+  }
+
+  if (clearVideoIfMissing) {
+    video.srcObject = null;
+    video.style.background = "#0b1220";
+  }
+}
+
+async function ensureAudioInputStream() {
+  if (getLiveAudioTrack(userStream)) return true;
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return false;
+  }
+
+  try {
+    const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+      audio: MIC_AUDIO_CONSTRAINTS
+    });
+
+    const existingVideoTrack = getLiveVideoTrack(userStream);
+    const mergedStream = existingVideoTrack
+      ? new MediaStream([existingVideoTrack, ...audioOnlyStream.getAudioTracks()])
+      : audioOnlyStream;
+
+    applyUserStream(mergedStream, { clearVideoIfMissing: true });
+    setupMicMeter(mergedStream);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function initMediaAccess() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    requestMicActivation({ allowTypedFallback: true });
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user" },
+      audio: MIC_AUDIO_CONSTRAINTS
+    });
+
+    applyUserStream(stream);
+    setupMicMeter(stream);
+    return;
+  } catch {
+    // Continue to audio-only fallback.
+  }
+
+  try {
+    const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+      audio: MIC_AUDIO_CONSTRAINTS
+    });
+
+    applyUserStream(audioOnlyStream, { clearVideoIfMissing: true });
+    setupMicMeter(audioOnlyStream);
+
+    setResponseStatus("Camera unavailable. Microphone is active.");
+    return;
+  } catch {
+    requestMicActivation({ allowTypedFallback: true });
+  }
+}
 
 /* ================= AI AVATAR STATES ================= */
 function setAIState(state) {
@@ -214,76 +283,58 @@ function getSpeechLocaleFromProfileLanguage(value) {
   return "en-US";
 }
 
-function getSpeechLanguageLabel(locale) {
-  const normalized = String(locale || "").toLowerCase();
-  if (normalized.startsWith("hi")) return "Hindi";
-  if (normalized.startsWith("en-in")) return "Indian English";
-  return "English";
+function normalizeSpokenText(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .replace(/\s([?.!,;:])/g, "$1")
+    .trim();
 }
 
-function getInterviewerVoiceStyle() {
-  const interviewType = String(
-    interviewConfig?.interviewType || candidateProfile?.interviewType || "technical"
-  )
-    .trim()
-    .toLowerCase();
-
-  if (interviewType === "hr") {
-    return "Sound warm and conversational, like an experienced HR interviewer.";
-  }
-  if (interviewType === "behavioral") {
-    return "Sound empathetic and attentive, with natural pauses and clear articulation.";
-  }
-  if (interviewType === "mixed") {
-    return "Sound professional and friendly, balancing clarity with a natural interview rhythm.";
-  }
-  return "Sound like a senior technical interviewer: confident, clear, and natural.";
-}
-
-function cleanupNeuralAudio() {
-  if (aiAudioEl) {
-    aiAudioEl.onended = null;
-    aiAudioEl.onerror = null;
-  }
-  aiAudioEl = null;
-
-  if (aiAudioObjectUrl) {
+function releaseAiAudioPlayer() {
+  if (activeAiAudio) {
     try {
-      URL.revokeObjectURL(aiAudioObjectUrl);
+      activeAiAudio.pause();
     } catch {
       // ignore
     }
+
+    activeAiAudio.src = "";
+    activeAiAudio = null;
   }
-  aiAudioObjectUrl = "";
+
+  if (activeAiAudioUrl) {
+    URL.revokeObjectURL(activeAiAudioUrl);
+    activeAiAudioUrl = "";
+  }
 }
 
 function stopAISpeechOutput() {
   browserSpeechToken += 1;
-
-  if (aiSpeechFetchController) {
+  if (activeTtsRequestController) {
     try {
-      aiSpeechFetchController.abort();
+      activeTtsRequestController.abort("cancelled");
+    } catch {
+      // ignore
+    }
+    activeTtsRequestController = null;
+  }
+
+  releaseAiAudioPlayer();
+
+  if (window.speechSynthesis) {
+    try {
+      window.speechSynthesis.cancel();
     } catch {
       // ignore
     }
   }
-  aiSpeechFetchController = null;
-
-  if (aiAudioEl) {
-    try {
-      aiAudioEl.pause();
-      aiAudioEl.currentTime = 0;
-    } catch {
-      // ignore
-    }
-  }
-
-  cleanupNeuralAudio();
-  speechSynthesis.cancel();
 }
 
 function pickBrowserVoice(locale) {
-  const voices = speechSynthesis.getVoices();
+  const synth = window.speechSynthesis;
+  if (!synth || typeof synth.getVoices !== "function") return null;
+
+  const voices = synth.getVoices();
   if (!Array.isArray(voices) || !voices.length) return null;
 
   const normalizedLocale = String(locale || "").toLowerCase();
@@ -294,14 +345,8 @@ function pickBrowserVoice(locale) {
   const byPrefix = voices.find((voice) =>
     String(voice.lang || "").toLowerCase().startsWith(prefix)
   );
-  return byPrefix || null;
-}
 
-function normalizeSpokenText(text) {
-  return String(text || "")
-    .replace(/\s+/g, " ")
-    .replace(/\s([?.!,;:])/g, "$1")
-    .trim();
+  return byPrefix || null;
 }
 
 function splitTextForSpeech(text) {
@@ -313,7 +358,7 @@ function splitTextForSpeech(text) {
   let buffer = "";
 
   sentenceChunks.forEach((chunkRaw) => {
-    const chunk = chunkRaw.trim();
+    const chunk = String(chunkRaw || "").trim();
     if (!chunk) return;
 
     if (!buffer) {
@@ -333,24 +378,140 @@ function splitTextForSpeech(text) {
   return chunks;
 }
 
-function speakWithBrowserVoice(text, onEnd) {
-  const chunks = splitTextForSpeech(text);
-  if (!chunks.length) {
-    setAIState("idle");
-    if (typeof onEnd === "function") onEnd();
+async function requestBackendTtsAudio(text) {
+  if (!window.InterviewAI?.api?.fetch) {
+    throw new Error("API client unavailable");
+  }
+
+  const controller = new AbortController();
+  activeTtsRequestController = controller;
+  const timeoutId = setTimeout(() => controller.abort("timeout"), 12000);
+
+  try {
+    const res = await window.InterviewAI.api.fetch("/interview/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        language: candidateSpeechLocale
+      }),
+      signal: controller.signal
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Failed to generate voice");
+    }
+
+    const blob = await res.blob();
+    if (!blob.size) {
+      throw new Error("Generated voice is empty");
+    }
+
+    return blob;
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      const abortReason = String(controller.signal?.reason || "").trim().toLowerCase();
+      const abortErr = new Error(
+        abortReason === "cancelled" ? "Voice generation cancelled" : "Voice generation timed out"
+      );
+      abortErr.code = abortReason === "cancelled" ? "TTS_CANCELLED" : "TTS_TIMEOUT";
+      throw abortErr;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+    if (activeTtsRequestController === controller) {
+      activeTtsRequestController = null;
+    }
+  }
+}
+
+function playAudioBlob(blob, speechToken, textLength) {
+  return new Promise((resolve, reject) => {
+    releaseAiAudioPlayer();
+
+    const objectUrl = URL.createObjectURL(blob);
+    const audio = new Audio(objectUrl);
+    activeAiAudio = audio;
+    activeAiAudioUrl = objectUrl;
+
+    const cleanup = () => {
+      try {
+        audio.pause();
+      } catch {
+        // ignore
+      }
+
+      audio.onended = null;
+      audio.onerror = null;
+      audio.src = "";
+
+      if (activeAiAudio === audio) {
+        activeAiAudio = null;
+      }
+      if (activeAiAudioUrl === objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        activeAiAudioUrl = "";
+      }
+    };
+
+    const timeoutMs = Math.max(3000, Math.min(30000, textLength * 120));
+    const watchdog = setTimeout(() => {
+      cleanup();
+      resolve({ timedOut: true });
+    }, timeoutMs);
+
+    audio.onended = () => {
+      clearTimeout(watchdog);
+      const cancelled = speechToken !== browserSpeechToken;
+      cleanup();
+      resolve({ cancelled });
+    };
+
+    audio.onerror = () => {
+      clearTimeout(watchdog);
+      cleanup();
+      reject(new Error("Unable to play generated voice"));
+    };
+
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.then === "function") {
+      playPromise.catch((err) => {
+        clearTimeout(watchdog);
+        cleanup();
+        reject(err || new Error("Audio playback failed"));
+      });
+    }
+  });
+}
+
+function speakWithBrowserVoice(cleanText, speechToken, finish) {
+  if (!window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== "function") {
+    setTimeout(() => finish(true), 250);
     return;
   }
 
-  const speechToken = browserSpeechToken;
+  const chunks = splitTextForSpeech(cleanText);
+  if (!chunks.length) {
+    finish(true);
+    return;
+  }
+
   const preferredVoice = pickBrowserVoice(candidateSpeechLocale);
   let index = 0;
+  const watchdog = setTimeout(() => finish(speechToken === browserSpeechToken), Math.max(2000, cleanText.length * 75));
 
   const speakNextChunk = () => {
-    if (speechToken !== browserSpeechToken) return;
+    if (speechToken !== browserSpeechToken) {
+      clearTimeout(watchdog);
+      finish(false);
+      return;
+    }
 
     if (index >= chunks.length) {
-      setAIState("idle");
-      if (typeof onEnd === "function") onEnd();
+      clearTimeout(watchdog);
+      finish(true);
       return;
     }
 
@@ -372,101 +533,59 @@ function speakWithBrowserVoice(text, onEnd) {
       speakNextChunk();
     };
 
-    speechSynthesis.speak(utterance);
+    try {
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      clearTimeout(watchdog);
+      finish(true);
+    }
   };
 
   speakNextChunk();
 }
 
-async function fetchNeuralSpeechAudioUrl(text) {
-  if (!neuralVoiceAttemptEnabled) return "";
-  if (!window.InterviewAI?.api?.fetch) return "";
-
-  aiSpeechFetchController = new AbortController();
-
-  try {
-    const res = await window.InterviewAI.api.fetch("/interview/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: aiSpeechFetchController.signal,
-      body: JSON.stringify({
-        text,
-        language: getSpeechLanguageLabel(candidateSpeechLocale),
-        style: getInterviewerVoiceStyle()
-      })
-    });
-
-    if (!res.ok) {
-      // Disable repeated failed neural attempts when service/key is unavailable.
-      if (res.status === 401 || res.status === 403 || res.status === 404 || res.status === 503) {
-        neuralVoiceAttemptEnabled = false;
-      }
-      return "";
-    }
-
-    const contentType = String(res.headers.get("content-type") || "").toLowerCase();
-    if (!contentType.includes("audio")) return "";
-
-    const audioBlob = await res.blob();
-    if (!audioBlob || !audioBlob.size) return "";
-
-    return URL.createObjectURL(audioBlob);
-  } catch (err) {
-    if (err?.name === "AbortError") return "";
-    return "";
-  } finally {
-    aiSpeechFetchController = null;
-  }
-}
-
 function speak(text, onEnd) {
+  const clean = normalizeSpokenText(text);
+  let finished = false;
+  const finish = (shouldInvokeOnEnd) => {
+    if (finished) return;
+    finished = true;
+    setAIState("idle");
+    if (shouldInvokeOnEnd && typeof onEnd === "function") onEnd();
+  };
+
+  if (!clean) {
+    finish(true);
+    return;
+  }
+
   stopAISpeechOutput();
   setAIState("speaking");
   const speechToken = browserSpeechToken;
 
-  const clean = normalizeSpokenText(text);
-  if (!clean) {
-    setAIState("idle");
-    if (typeof onEnd === "function") onEnd();
-    return;
-  }
-
-  const fallback = () => speakWithBrowserVoice(clean, onEnd);
-
-  fetchNeuralSpeechAudioUrl(clean)
-    .then((audioUrl) => {
-      if (speechToken !== browserSpeechToken) return;
-
-      if (!audioUrl) {
-        fallback();
+  requestBackendTtsAudio(clean)
+    .then((audioBlob) => {
+      if (speechToken !== browserSpeechToken) {
+        finish(false);
+        return null;
+      }
+      return playAudioBlob(audioBlob, speechToken, clean.length);
+    })
+    .then((playResult) => {
+      if (!playResult) return;
+      if (playResult.cancelled) {
+        finish(false);
+        return;
+      }
+      finish(true);
+    })
+    .catch((err) => {
+      if (speechToken !== browserSpeechToken || err?.code === "TTS_CANCELLED") {
+        finish(false);
         return;
       }
 
-      aiAudioObjectUrl = audioUrl;
-      aiAudioEl = new Audio(audioUrl);
-      aiAudioEl.preload = "auto";
-
-      aiAudioEl.onended = () => {
-        if (speechToken !== browserSpeechToken) return;
-        cleanupNeuralAudio();
-        setAIState("idle");
-        if (typeof onEnd === "function") onEnd();
-      };
-
-      aiAudioEl.onerror = () => {
-        if (speechToken !== browserSpeechToken) return;
-        cleanupNeuralAudio();
-        fallback();
-      };
-
-      aiAudioEl.play().catch(() => {
-        if (speechToken !== browserSpeechToken) return;
-        cleanupNeuralAudio();
-        fallback();
-      });
-    })
-    .catch(() => {
-      fallback();
+      speakWithBrowserVoice(clean, speechToken, finish);
     });
 }
 
@@ -506,7 +625,7 @@ function normalizeApiErrorMessage(rawMessage, fallback) {
   if (!message) return fallback;
 
   if (/status code 401|invalid api key|unauthorized/i.test(message)) {
-    return "AI auth failed. Update GROQ_API_KEY in interview-ai-backend/.env and restart backend.";
+    return "AI auth failed. Update GEMINI_API_KEY in interview-ai-backend/.env and restart backend.";
   }
 
   if (/status code 403|forbidden/i.test(message)) {
@@ -521,7 +640,7 @@ function canUseSpeechRecognition() {
 }
 
 function canUseMediaRecorder() {
-  return !!(window.MediaRecorder && userStream);
+  return !!(window.MediaRecorder && getLiveAudioTrack(userStream));
 }
 
 function canCaptureVoice() {
@@ -542,8 +661,14 @@ function setAnswerControls({ canStart, canStop, canSubmitTyped }) {
   if (submitTypedBtn) submitTypedBtn.disabled = !canSubmitTyped;
 
   if (typedFallbackEl) {
-    typedFallbackEl.hidden = !(canSubmitTyped && (forceTypedFallback || !canCaptureVoice()));
+    typedFallbackEl.hidden = !canSubmitTyped;
   }
+}
+
+function isSecureMicContext() {
+  const hostname = String(window.location?.hostname || "").trim().toLowerCase();
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+  return !!window.isSecureContext || isLocalhost;
 }
 
 /* ================= INTERVIEW STATE ================= */
@@ -586,7 +711,7 @@ if (answerToggleBtn) {
       stopAnswerCapture({ submit: true });
       return;
     }
-    beginAnswerCapture();
+    await beginAnswerCapture();
   });
 }
 
@@ -736,7 +861,7 @@ async function askAIQuestion() {
     speak(currentQuestion, () => {
       if (canCaptureVoice()) forceTypedFallback = false;
       isAnswerWindowOpen = true;
-      answerText.innerText = "Click Start Answer and speak your response clearly.";
+      answerText.innerText = "Type your answer below or click Start Answer to respond with voice.";
       setResponseStatus("Your turn to answer");
       setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       setAIState("idle");
@@ -805,6 +930,19 @@ async function transcribeRecordedAudio(audioBlob) {
   return String(data.text || "").trim();
 }
 
+async function switchToRecorderCapture(statusMessage) {
+  preferRecorderMode = true;
+  answerText.innerText = String(statusMessage || "Speech recognition unavailable. Switching to recorder mode.");
+  setResponseStatus("Switching recorder mode");
+
+  if (startRecorderCapture()) return true;
+
+  const micReady = await ensureAudioInputStream();
+  if (micReady && startRecorderCapture()) return true;
+
+  return false;
+}
+
 function initSpeechRecognition() {
   if (!SpeechRecognitionCtor) {
     console.warn("Speech recognition API unavailable. Recorder transcription fallback enabled.");
@@ -856,23 +994,51 @@ function initSpeechRecognition() {
     submitAnswer(trimmedAnswer, { source: "speech" });
   };
 
-  recognition.onerror = (event) => {
-    isCapturing = false;
-    shouldSubmitOnEnd = false;
+  recognition.onerror = async (event) => {
+    const errorCode = String(event?.error || "").trim().toLowerCase();
 
-    if ((event?.error === "not-allowed" || event?.error === "service-not-allowed") && canUseMediaRecorder()) {
-      preferRecorderMode = true;
-      answerText.innerText = "Speech API blocked. Switching to recorder mode...";
-      setResponseStatus("Switching recorder mode");
-      if (startRecorderCapture()) return;
-    }
-
-    if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
-      requestMicActivation({ allowTypedFallback: true });
+    if (!errorCode || errorCode === "aborted") {
       return;
     }
 
-    answerText.innerText = "Microphone error. Allow microphone access and try again.";
+    isCapturing = false;
+
+    if (errorCode === "no-speech") {
+      shouldSubmitOnEnd = false;
+      answerText.innerText = "No speech detected. Please try again and speak a little louder.";
+      setResponseStatus("No speech detected");
+      setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
+      return;
+    }
+
+    if (
+      errorCode === "network" ||
+      errorCode === "audio-capture" ||
+      errorCode === "language-not-supported"
+    ) {
+      shouldSubmitOnEnd = false;
+      const switched = await switchToRecorderCapture(
+        "Speech recognition is unavailable. Switching to recorder mode..."
+      );
+      if (!switched) {
+        requestMicActivation({ allowTypedFallback: true });
+      }
+      return;
+    }
+
+    if (errorCode === "not-allowed" || errorCode === "service-not-allowed") {
+      shouldSubmitOnEnd = false;
+      const switched = await switchToRecorderCapture(
+        "Browser speech API blocked. Switching to recorder mode..."
+      );
+      if (!switched) {
+        requestMicActivation({ allowTypedFallback: true });
+      }
+      return;
+    }
+
+    shouldSubmitOnEnd = false;
+    answerText.innerText = "Microphone error. Try again or type your answer below.";
     setResponseStatus("Microphone unavailable");
     setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
   };
@@ -1003,13 +1169,17 @@ function requestMicActivation({ allowTypedFallback = true } = {}) {
   if (!canCaptureVoice()) {
     answerText.innerText = "Voice input is unavailable in this browser. Type your answer instead.";
     setResponseStatus("Typed input mode");
+  } else if (!isSecureMicContext()) {
+    answerText.innerText =
+      "Microphone requires HTTPS or localhost. Open this app from https:// or http://localhost.";
+    setResponseStatus("Insecure context for microphone");
   } else {
-    answerText.innerText = "Microphone permission required. Allow mic access, then click Start Answer.";
+    answerText.innerText = "Microphone permission required. Allow this site to use your mic, then click Start Answer.";
     setResponseStatus("Microphone permission required");
   }
 
   setAnswerControls({
-    canStart: canAnswerNow && canCaptureVoice(),
+    canStart: canAnswerNow && canCaptureVoice() && isSecureMicContext(),
     canStop: false,
     canSubmitTyped: canAnswerNow
   });
@@ -1018,10 +1188,12 @@ function requestMicActivation({ allowTypedFallback = true } = {}) {
   }, 1500);
 }
 
-function beginAnswerCapture() {
+async function beginAnswerCapture() {
+  stopAISpeechOutput();
   finalAnswer = "";
   latestTranscript = "";
   forceTypedFallback = false;
+  await ensureAudioInputStream();
 
   if (canUseSpeechRecognition() && !preferRecorderMode) {
     isCapturing = true;
@@ -1042,6 +1214,10 @@ function beginAnswerCapture() {
   }
 
   if (startRecorderCapture()) return;
+
+  const micReady = await ensureAudioInputStream();
+  if (micReady && startRecorderCapture()) return;
+
   requestMicActivation({ allowTypedFallback: true });
 }
 
@@ -1073,6 +1249,7 @@ function stopAnswerCapture({ submit }) {
 }
 
 initSpeechRecognition();
+initMediaAccess();
 
 async function saveSessionEntry(entry) {
   if (!currentSessionId) return;
