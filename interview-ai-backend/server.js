@@ -40,6 +40,7 @@ mongoose.set("bufferCommands", false);
 // ================== ROUTES ==================
 const authRoutes = require("./routes/auth");
 const interviewRoutes = require("./routes/interview");
+const { requireAuth, requireSameUserIdFrom } = require("./middleware/auth");
 
 // ================== MODELS ==================
 const Profile = require("./models/profile");
@@ -139,7 +140,7 @@ async function startServer() {
     app.use("/", authRoutes);
 
     // ================== PROFILE ==================
-    app.post("/profile", dbRequired, async (req, res) => {
+    app.post("/profile", dbRequired, requireAuth, requireSameUserIdFrom("body.userId"), async (req, res) => {
       try {
         const { userId, ...data } = req.body;
 
@@ -159,7 +160,7 @@ async function startServer() {
       }
     });
 
-    app.get("/profile/:userId", dbRequired, async (req, res) => {
+    app.get("/profile/:userId", dbRequired, requireAuth, requireSameUserIdFrom("params.userId"), async (req, res) => {
       try {
         const { userId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -173,7 +174,7 @@ async function startServer() {
     });
 
     // ================== FEEDBACK ==================
-    app.post("/feedback", dbRequired, async (req, res) => {
+    app.post("/feedback", dbRequired, requireAuth, requireSameUserIdFrom("body.userId"), async (req, res) => {
       try {
         const { userId, positive, improvement, recommend } = req.body;
         if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
