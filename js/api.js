@@ -1,5 +1,7 @@
 (() => {
   const STORAGE_KEY = "INTERVIEWAI_API_BASE_URL";
+  const AUTH_TOKEN_KEY = "INTERVIEWAI_AUTH_TOKEN";
+  const LEGACY_AUTH_TOKEN_KEY = "authToken";
   const FALLBACK_BASE_URL = "http://127.0.0.1:5000";
   const PING_PATH = "/ping";
   const PING_EXPECTED = "pong";
@@ -18,6 +20,54 @@
       throw new Error(`api.fetch: path must start with '/': ${path}`);
     }
     return baseUrl ? `${baseUrl}${path}` : path;
+  }
+
+  function getAuthToken() {
+    return (
+      String(localStorage.getItem(AUTH_TOKEN_KEY) || "").trim() ||
+      String(localStorage.getItem(LEGACY_AUTH_TOKEN_KEY) || "").trim()
+    );
+  }
+
+  function clearAuthState() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
+    localStorage.removeItem("user");
+  }
+
+  function shouldHandleUnauthorized(path) {
+    return !(
+      path === "/login" ||
+      path === "/signup" ||
+      path === "/forgot-password" ||
+      path === PING_PATH
+    );
+  }
+
+  function getLoginRedirectPath() {
+    const pathname = String(window.location?.pathname || "").toLowerCase();
+    const protocol = String(window.location?.protocol || "").toLowerCase();
+
+    if (protocol === "file:") {
+      if (pathname.includes("/auth/")) return "login.html";
+      if (pathname.endsWith("/index.html") || pathname.endsWith("/smart-interview-platform")) {
+        return "auth/login.html";
+      }
+      return "../auth/login.html";
+    }
+
+    return "/auth/login.html";
+  }
+
+  function handleUnauthorized(path) {
+    if (!shouldHandleUnauthorized(path)) return;
+
+    clearAuthState();
+
+    const pathname = String(window.location?.pathname || "").toLowerCase();
+    if (pathname.includes("/auth/login.html")) return;
+
+    window.location.href = getLoginRedirectPath();
   }
 
   async function probePing(baseUrl, timeoutMs) {
@@ -60,7 +110,25 @@
     ready: null,
     async fetch(path, options) {
       await api.ready;
-      return fetch(buildUrl(api.baseUrl, path), options);
+
+      const headers = new Headers(options?.headers || {});
+      if (!headers.has("Authorization")) {
+        const token = getAuthToken();
+        if (token) {
+          headers.set("Authorization", `Bearer ${token}`);
+        }
+      }
+
+      const response = await fetch(buildUrl(api.baseUrl, path), {
+        ...(options || {}),
+        headers
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized(path);
+      }
+
+      return response;
     },
     setBaseUrl(value) {
       const normalized = normalizeBaseUrl(value);
@@ -77,4 +145,3 @@
   window.InterviewAI = window.InterviewAI || {};
   window.InterviewAI.api = api;
 })();
-
