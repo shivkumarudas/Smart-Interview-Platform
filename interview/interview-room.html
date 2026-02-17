@@ -17,6 +17,7 @@
   <header class="call-header">
     <div class="title-block">
       <h2>Live Interview Room</h2>
+      <p class="room-subtitle">AI-guided practice with live voice and transcript</p>
       <p id="liveState" class="live-state">Connecting to interviewer...</p>
     </div>
     <div class="session-meta">
@@ -27,12 +28,18 @@
 
   <main class="call-grid">
     <section class="panel user-panel">
-      <h3>Candidate</h3>
+      <div class="panel-head">
+        <h3>Candidate</h3>
+        <span class="panel-tag">Live Camera</span>
+      </div>
       <video id="userVideo" autoplay muted></video>
       <p class="hint">Camera preview</p>
     </section>
     <section class="panel ai-panel">
-      <h3>AI Interviewer</h3>
+      <div class="panel-head">
+        <h3>AI Interviewer</h3>
+        <span class="panel-tag">Gemini Voice</span>
+      </div>
       <div class="ai-avatar-wrap">
         <lottie-player
           id="aiAvatar"
@@ -63,9 +70,9 @@
     </div>
 
     <div id="typedFallback" class="typed-fallback" hidden>
-      <p class="label">Microphone unavailable. Type your answer:</p>
+      <p class="label">Type your answer:</p>
       <textarea id="typedAnswer" class="typed-answer" rows="3" placeholder="Type your answer here"></textarea>
-      <button id="submitTyped" class="typed-btn" type="button">Submit Typed Answer</button>
+      <button id="submitTyped" class="typed-btn" type="button">Submit Answer</button>
     </div>
   </section>
 
