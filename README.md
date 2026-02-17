@@ -4,7 +4,7 @@ A lightweight web app with a Node/Express backend and a static HTML/JS frontend 
 
 ## Project Structure
 - `index.html` and folders like `auth/`, `dashboard/`, `interview/` provide the frontend.
-- `interview-ai-backend/` hosts the API and Groq-powered interview logic.
+- `interview-ai-backend/` hosts the API and Gemini-powered interview logic.
 
 ## Quick Start (Recommended)
 1) Install backend dependencies:
@@ -13,11 +13,15 @@ A lightweight web app with a Node/Express backend and a static HTML/JS frontend 
    npm install
    ```
 2) Create `interview-ai-backend/.env` (start from `interview-ai-backend/.env.example`) and set:
-   - `GROQ_API_KEY` (required for interview question/evaluation)
+   - `GEMINI_API_KEY` (required for interview question/evaluation)
    - `MONGO_URI` (required for signup/login/profile/feedback)
-   - Optional: `OPENAI_API_KEY` (enables realistic neural AI voice + speech transcription fallback)
-   - Optional: `GROQ_MODEL` (override default model)
-   - Optional: `STT_MODEL` or `GROQ_STT_MODEL` (override speech-to-text model)
+   - `JWT_SECRET` (required for secure login sessions; use a long random string)
+   - Optional: `GEMINI_TTS_MODEL` and `GEMINI_TTS_VOICE` (Gemini neural voice settings)
+   - Optional: `OPENAI_API_KEY` (fallback voice/transcription provider)
+   - Optional: `GEMINI_MODEL` (override default Gemini model, default `gemini-flash-lite-latest`)
+   - Optional: `TTS_PROVIDER` (`gemini` or `openai`; default auto-selects Gemini first)
+   - Optional: `JWT_EXPIRES_IN` (default `7d`)
+   - Optional: `STT_MODEL` or `GEMINI_STT_MODEL` (override speech-to-text model)
 3) Start the server:
    ```bash
    npm start
@@ -56,6 +60,11 @@ A lightweight web app with a Node/Express backend and a static HTML/JS frontend 
 - `POST /interview/session/:sessionId/end`
 - `GET /interview/session/:sessionId`
 - `GET /interview/sessions?userId=...`
+
+## Authentication
+- `POST /login` returns `user` and `token`.
+- Protected endpoints require `Authorization: Bearer <token>`.
+- The frontend stores token in `localStorage` key `INTERVIEWAI_AUTH_TOKEN` and sends it automatically through `js/api.js`.
 
 ## Notes
 - For production, set `CORS_ORIGIN` to your deployed frontend URL(s).
