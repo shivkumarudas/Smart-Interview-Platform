@@ -40,6 +40,8 @@
       path === "/login" ||
       path === "/signup" ||
       path === "/forgot-password" ||
+      path === "/forgot-password/request" ||
+      path === "/forgot-password/confirm" ||
       path === PING_PATH
     );
   }
