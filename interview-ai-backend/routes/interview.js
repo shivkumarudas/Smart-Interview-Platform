@@ -5,6 +5,7 @@ const { evaluateAnswer } = require("../ai/evaluateAnswer");
 const { synthesizeSpeech } = require("../ai/textToSpeech");
 const { transcribeSpeech, MAX_AUDIO_BYTES } = require("../ai/speechToText");
 const InterviewSession = require("../models/InterviewSession");
+const { requireAuth, requireSameUserIdFrom } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -71,8 +72,31 @@ function parseBase64Audio(audioBase64) {
   }
 }
 
+async function requireSessionOwnership(req, res, next) {
+  const { sessionId } = req.params;
+  if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
+    return res.status(400).json({ error: "Invalid sessionId" });
+  }
+
+  try {
+    const session = await InterviewSession.findById(sessionId).select({ userId: 1 }).lean();
+    if (!session) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+
+    if (String(session.userId) !== String(req?.auth?.userId || "")) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    req.sessionOwnershipChecked = true;
+    return next();
+  } catch (err) {
+    return res.status(500).json({ error: err.message || "Failed to validate session ownership" });
+  }
+}
+
 /* ================== SESSION START ================== */
-router.post("/session/start", dbRequired, async (req, res) => {
+router.post("/session/start", dbRequired, requireAuth, requireSameUserIdFrom("body.userId"), async (req, res) => {
   try {
     const { userId, config, profile } = req.body || {};
 
@@ -98,7 +122,12 @@ router.post("/session/start", dbRequired, async (req, res) => {
 });
 
 /* ================== SESSION APPEND ENTRY ================== */
-router.post("/session/:sessionId/entry", dbRequired, async (req, res) => {
+router.post(
+  "/session/:sessionId/entry",
+  dbRequired,
+  requireAuth,
+  requireSessionOwnership,
+  async (req, res) => {
   try {
     const { sessionId } = req.params;
     if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
@@ -139,12 +168,12 @@ router.post("/session/:sessionId/entry", dbRequired, async (req, res) => {
     };
 
     await InterviewSession.updateOne(
-      { _id: sessionId },
+      { _id: sessionId, userId: req.auth.userId },
       { $pull: { entries: { index: numericIndex } } }
     );
 
     const updateResult = await InterviewSession.updateOne(
-      { _id: sessionId },
+      { _id: sessionId, userId: req.auth.userId },
       { $push: { entries: entry } }
     );
 
@@ -159,7 +188,12 @@ router.post("/session/:sessionId/entry", dbRequired, async (req, res) => {
 });
 
 /* ================== SESSION END ================== */
-router.post("/session/:sessionId/end", dbRequired, async (req, res) => {
+router.post(
+  "/session/:sessionId/end",
+  dbRequired,
+  requireAuth,
+  requireSessionOwnership,
+  async (req, res) => {
   try {
     const { sessionId } = req.params;
     if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
@@ -168,8 +202,8 @@ router.post("/session/:sessionId/end", dbRequired, async (req, res) => {
 
     const endedAt = req.body?.endedAt ? new Date(req.body.endedAt) : new Date();
 
-    const session = await InterviewSession.findByIdAndUpdate(
-      sessionId,
+    const session = await InterviewSession.findOneAndUpdate(
+      { _id: sessionId, userId: req.auth.userId },
       { endedAt },
       { new: true }
     ).lean();
@@ -185,14 +219,22 @@ router.post("/session/:sessionId/end", dbRequired, async (req, res) => {
 });
 
 /* ================== SESSION GET ================== */
-router.get("/session/:sessionId", dbRequired, async (req, res) => {
+router.get(
+  "/session/:sessionId",
+  dbRequired,
+  requireAuth,
+  requireSessionOwnership,
+  async (req, res) => {
   try {
     const { sessionId } = req.params;
     if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
       return res.status(400).json({ error: "Invalid sessionId" });
     }
 
-    const session = await InterviewSession.findById(sessionId).lean();
+    const session = await InterviewSession.findOne({
+      _id: sessionId,
+      userId: req.auth.userId
+    }).lean();
     if (!session) {
       return res.status(404).json({ error: "Session not found" });
     }
@@ -204,7 +246,12 @@ router.get("/session/:sessionId", dbRequired, async (req, res) => {
 });
 
 /* ================== SESSION LIST ================== */
-router.get("/sessions", dbRequired, async (req, res) => {
+router.get(
+  "/sessions",
+  dbRequired,
+  requireAuth,
+  requireSameUserIdFrom("query.userId"),
+  async (req, res) => {
   try {
     const { userId } = req.query;
 
@@ -224,7 +271,7 @@ router.get("/sessions", dbRequired, async (req, res) => {
 });
 
 /* ================== ASK INTERVIEW QUESTION ================== */
-router.post("/question", async (req, res) => {
+router.post("/question", requireAuth, async (req, res) => {
   try {
     const { profile, config, context, history } = req.body || {};
 
@@ -274,12 +321,24 @@ router.post("/question", async (req, res) => {
     });
   } catch (err) {
     const providerStatus = getProviderStatusCode(err);
-    if (providerStatus === 401 || providerStatus === 403) {
-      return sendAiAuthError(res, "Interview question service", "GROQ_API_KEY");
+    const providerMessage = String(err?.response?.data?.error?.message || err?.message || "");
+    if (providerStatus === 429) {
+      return res.status(503).json({
+        success: false,
+        error:
+          "Gemini quota exceeded. Set GEMINI_MODEL=gemini-flash-lite-latest in interview-ai-backend/.env, wait for reset, or upgrade billing."
+      });
+    }
+    if (
+      providerStatus === 401 ||
+      providerStatus === 403 ||
+      (providerStatus === 400 && /api key|credential|unauthorized|permission/i.test(providerMessage))
+    ) {
+      return sendAiAuthError(res, "Interview question service", "GEMINI_API_KEY");
     }
 
-    if (String(err?.message || "").includes("GROQ_API_KEY is not set")) {
-      return sendAiAuthError(res, "Interview question service", "GROQ_API_KEY");
+    if (err?.code === "GEMINI_API_KEY_MISSING" || String(err?.message || "").includes("GEMINI_API_KEY is not set")) {
+      return sendAiAuthError(res, "Interview question service", "GEMINI_API_KEY");
     }
 
     console.error("Interview question error:", err.message);
@@ -292,7 +351,7 @@ router.post("/question", async (req, res) => {
 });
 
 /* ================== EVALUATE USER ANSWER ================== */
-router.post("/evaluate", async (req, res) => {
+router.post("/evaluate", requireAuth, async (req, res) => {
   try {
     const { question, answer, profile, config } = req.body || {};
 
@@ -316,12 +375,24 @@ router.post("/evaluate", async (req, res) => {
     });
   } catch (err) {
     const providerStatus = getProviderStatusCode(err);
-    if (providerStatus === 401 || providerStatus === 403) {
-      return sendAiAuthError(res, "Answer evaluation service", "GROQ_API_KEY");
+    const providerMessage = String(err?.response?.data?.error?.message || err?.message || "");
+    if (providerStatus === 429) {
+      return res.status(503).json({
+        success: false,
+        error:
+          "Gemini quota exceeded. Set GEMINI_MODEL=gemini-flash-lite-latest in interview-ai-backend/.env, wait for reset, or upgrade billing."
+      });
+    }
+    if (
+      providerStatus === 401 ||
+      providerStatus === 403 ||
+      (providerStatus === 400 && /api key|credential|unauthorized|permission/i.test(providerMessage))
+    ) {
+      return sendAiAuthError(res, "Answer evaluation service", "GEMINI_API_KEY");
     }
 
-    if (String(err?.message || "").includes("GROQ_API_KEY is not set")) {
-      return sendAiAuthError(res, "Answer evaluation service", "GROQ_API_KEY");
+    if (err?.code === "GEMINI_API_KEY_MISSING" || String(err?.message || "").includes("GEMINI_API_KEY is not set")) {
+      return sendAiAuthError(res, "Answer evaluation service", "GEMINI_API_KEY");
     }
 
     console.error("Answer evaluation error:", err.message);
@@ -334,7 +405,7 @@ router.post("/evaluate", async (req, res) => {
 });
 
 /* ================== TRANSCRIBE USER VOICE ================== */
-router.post("/transcribe", async (req, res) => {
+router.post("/transcribe", requireAuth, async (req, res) => {
   try {
     const { audioBase64, mimeType, language, prompt } = req.body || {};
     const audioBuffer = parseBase64Audio(audioBase64);
@@ -370,7 +441,7 @@ router.post("/transcribe", async (req, res) => {
       return res.status(503).json({
         success: false,
         error:
-          "Voice transcription is unavailable. Set OPENAI_API_KEY or GROQ_API_KEY in interview-ai-backend/.env."
+          "Voice transcription is unavailable. Set OPENAI_API_KEY or GEMINI_API_KEY in interview-ai-backend/.env."
       });
     }
 
@@ -382,11 +453,16 @@ router.post("/transcribe", async (req, res) => {
     }
 
     const providerStatus = getProviderStatusCode(err);
-    if (providerStatus === 401 || providerStatus === 403) {
+    const providerMessage = String(err?.response?.data?.error?.message || err?.message || "");
+    if (
+      providerStatus === 401 ||
+      providerStatus === 403 ||
+      (providerStatus === 400 && /api key|credential|unauthorized|permission/i.test(providerMessage))
+    ) {
       return res.status(503).json({
         success: false,
         error:
-          "Voice transcription auth failed. Check OPENAI_API_KEY or GROQ_API_KEY in interview-ai-backend/.env."
+          "Voice transcription auth failed. Check OPENAI_API_KEY or GEMINI_API_KEY in interview-ai-backend/.env."
       });
     }
 
@@ -399,7 +475,7 @@ router.post("/transcribe", async (req, res) => {
 });
 
 /* ================== TTS (HUMAN-LIKE AI VOICE) ================== */
-router.post("/tts", async (req, res) => {
+router.post("/tts", requireAuth, async (req, res) => {
   try {
     const {
       text,
@@ -436,11 +512,19 @@ router.post("/tts", async (req, res) => {
 
     res.setHeader("Content-Type", result.contentType);
     res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-TTS-Provider", result.provider || "unknown");
     res.setHeader("X-TTS-Model", result.model);
     res.setHeader("X-TTS-Voice", result.voice);
 
     return res.send(result.audioBuffer);
   } catch (err) {
+    if (err?.code === "GEMINI_API_KEY_MISSING") {
+      return res.status(503).json({
+        success: false,
+        error: "Neural voice unavailable. Set GEMINI_API_KEY in interview-ai-backend/.env."
+      });
+    }
+
     if (err?.code === "OPENAI_API_KEY_MISSING") {
       return res.status(503).json({
         success: false,
@@ -448,15 +532,41 @@ router.post("/tts", async (req, res) => {
       });
     }
 
-    const providerStatus = Number(err?.status) || 0;
-    if (providerStatus === 401 || providerStatus === 403) {
+    if (err?.code === "TTS_API_KEY_MISSING") {
       return res.status(503).json({
         success: false,
-        error: "Neural voice unavailable. Check OPENAI_API_KEY in interview-ai-backend/.env."
+        error:
+          "Neural voice unavailable. Set GEMINI_API_KEY (preferred) or OPENAI_API_KEY in interview-ai-backend/.env."
       });
     }
 
-    console.error("TTS error", providerStatus ? `(provider status ${providerStatus})` : "");
+    const providerStatus = getProviderStatusCode(err);
+    if (providerStatus === 429) {
+      return res.status(503).json({
+        success: false,
+        error:
+          "Voice quota exceeded. Try again later, switch GEMINI_TTS_MODEL, or upgrade your provider plan."
+      });
+    }
+
+    const providerMessage = String(err?.response?.data?.error?.message || err?.message || "");
+    if (
+      providerStatus === 401 ||
+      providerStatus === 403 ||
+      (providerStatus === 400 && /api key|credential|unauthorized|permission/i.test(providerMessage))
+    ) {
+      return res.status(503).json({
+        success: false,
+        error:
+          "Neural voice auth failed. Check GEMINI_API_KEY (or OPENAI_API_KEY) in interview-ai-backend/.env."
+      });
+    }
+
+    console.error(
+      "TTS error",
+      providerStatus ? `(provider status ${providerStatus})` : "",
+      err?.message || ""
+    );
     return res.status(500).json({
       success: false,
       error: "Failed to generate speech"
