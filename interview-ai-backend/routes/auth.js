@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 const User = require("../models/user");
 const localAuthStore = require("../utils/localAuthStore");
+const { issueAuthToken } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -203,6 +204,14 @@ router.post("/login", async (req, res) => {
         name: user.name || "",
         email: user.email
       },
+      token: issueAuthToken(
+        {
+          id: mode === "database" ? user._id.toString() : String(user.id),
+          name: user.name || "",
+          email: user.email
+        },
+        mode
+      ),
       mode
     });
   } catch (err) {
