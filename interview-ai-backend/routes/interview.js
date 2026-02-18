@@ -6,8 +6,37 @@ const { synthesizeSpeech } = require("../ai/textToSpeech");
 const { transcribeSpeech, MAX_AUDIO_BYTES } = require("../ai/speechToText");
 const InterviewSession = require("../models/InterviewSession");
 const { requireAuth, requireSameUserIdFrom } = require("../middleware/auth");
+const { createRateLimiter } = require("../middleware/rateLimit");
 
 const router = express.Router();
+
+const questionLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_QUESTION_PER_MIN || 30),
+  message: "Too many question requests. Please wait a minute and try again.",
+  keyGenerator: (req) => `${req?.auth?.userId || req.ip}:question`
+});
+
+const evaluateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_EVALUATE_PER_MIN || 30),
+  message: "Too many evaluation requests. Please wait a minute and try again.",
+  keyGenerator: (req) => `${req?.auth?.userId || req.ip}:evaluate`
+});
+
+const transcribeLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_TRANSCRIBE_PER_MIN || 20),
+  message: "Too many transcription requests. Please wait a minute and try again.",
+  keyGenerator: (req) => `${req?.auth?.userId || req.ip}:transcribe`
+});
+
+const ttsLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_TTS_PER_MIN || 20),
+  message: "Too many voice generation requests. Please wait a minute and try again.",
+  keyGenerator: (req) => `${req?.auth?.userId || req.ip}:tts`
+});
 
 function dbRequired(req, res, next) {
   if (mongoose.connection.readyState === 1) {
@@ -271,7 +300,7 @@ router.get(
 });
 
 /* ================== ASK INTERVIEW QUESTION ================== */
-router.post("/question", requireAuth, async (req, res) => {
+router.post("/question", requireAuth, questionLimiter, async (req, res) => {
   try {
     const { profile, config, context, history } = req.body || {};
 
@@ -351,7 +380,7 @@ router.post("/question", requireAuth, async (req, res) => {
 });
 
 /* ================== EVALUATE USER ANSWER ================== */
-router.post("/evaluate", requireAuth, async (req, res) => {
+router.post("/evaluate", requireAuth, evaluateLimiter, async (req, res) => {
   try {
     const { question, answer, profile, config } = req.body || {};
 
@@ -405,7 +434,7 @@ router.post("/evaluate", requireAuth, async (req, res) => {
 });
 
 /* ================== TRANSCRIBE USER VOICE ================== */
-router.post("/transcribe", requireAuth, async (req, res) => {
+router.post("/transcribe", requireAuth, transcribeLimiter, async (req, res) => {
   try {
     const { audioBase64, mimeType, language, prompt } = req.body || {};
     const audioBuffer = parseBase64Audio(audioBase64);
@@ -475,7 +504,7 @@ router.post("/transcribe", requireAuth, async (req, res) => {
 });
 
 /* ================== TTS (HUMAN-LIKE AI VOICE) ================== */
-router.post("/tts", requireAuth, async (req, res) => {
+router.post("/tts", requireAuth, ttsLimiter, async (req, res) => {
   try {
     const {
       text,
