@@ -40,7 +40,7 @@ mongoose.set("bufferCommands", false);
 // ================== ROUTES ==================
 const authRoutes = require("./routes/auth");
 const interviewRoutes = require("./routes/interview");
-const { requireAuth, requireSameUserIdFrom } = require("./middleware/auth");
+const { assertAuthConfig, requireAuth, requireSameUserIdFrom } = require("./middleware/auth");
 
 // ================== MODELS ==================
 const Profile = require("./models/profile");
@@ -122,6 +122,8 @@ async function connectToMongoIfConfigured() {
 // ================== START SERVER ==================
 async function startServer() {
   try {
+    assertAuthConfig();
+
     // ================== HEALTH CHECK ==================
     app.get("/ping", (req, res) => {
       res.send("pong");
