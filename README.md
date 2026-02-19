@@ -47,7 +47,9 @@ A lightweight web app with a Node/Express backend and a static HTML/JS frontend 
 ## API Endpoints (Backend)
 - `POST /signup`
 - `POST /login`
-- `POST /forgot-password`
+- `POST /forgot-password/request`
+- `POST /forgot-password/confirm`
+- `POST /forgot-password` (backward-compatible alias; secure code flow only)
 - `POST /profile`
 - `GET /profile/:userId`
 - `POST /feedback`
@@ -65,6 +67,11 @@ A lightweight web app with a Node/Express backend and a static HTML/JS frontend 
 - `POST /login` returns `user` and `token`.
 - Protected endpoints require `Authorization: Bearer <token>`.
 - The frontend stores token in `localStorage` key `INTERVIEWAI_AUTH_TOKEN` and sends it automatically through `js/api.js`.
+
+## Password Reset
+- Step 1: `POST /forgot-password/request` with `{ email }`
+- Step 2: `POST /forgot-password/confirm` with `{ email, resetCode, newPassword }`
+- In non-production mode, the request endpoint also returns `devResetCode` for local testing.
 
 ## Notes
 - For production, set `CORS_ORIGIN` to your deployed frontend URL(s).
