@@ -4,6 +4,14 @@ const mongoose = require("mongoose");
 const User = require("../models/user");
 const localAuthStore = require("../utils/localAuthStore");
 const { issueAuthToken } = require("../middleware/auth");
+const { createRateLimiter } = require("../middleware/rateLimit");
+const passwordResetStore = require("../utils/passwordResetStore");
+const {
+  normalizeEmail,
+  isValidEmail,
+  isValidPassword,
+  normalizeText
+} = require("../utils/validation");
 
 const router = express.Router();
 
@@ -11,17 +19,40 @@ function isDbConnected() {
   return mongoose.connection.readyState === 1;
 }
 
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
+const signupLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_SIGNUP_MAX || 10),
+  message: "Too many signup attempts. Please try again in a few minutes.",
+  keyGenerator: (req) => `${req.ip}:signup:${normalizeEmail(req?.body?.email)}`
+});
 
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+const loginLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_LOGIN_MAX || 15),
+  message: "Too many login attempts. Please try again in a few minutes.",
+  keyGenerator: (req) => `${req.ip}:login:${normalizeEmail(req?.body?.email)}`
+});
 
-function isValidPassword(password) {
-  return String(password || "").length >= 6;
-}
+const forgotPasswordRequestLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_FORGOT_REQUEST_MAX || 6),
+  message: "Too many password reset requests. Please wait and try again.",
+  keyGenerator: (req) => `${req.ip}:forgot-request:${normalizeEmail(req?.body?.email)}`
+});
+
+const forgotPasswordConfirmLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_FORGOT_CONFIRM_MAX || 10),
+  message: "Too many reset confirmation attempts. Please wait and try again.",
+  keyGenerator: (req) => `${req.ip}:forgot-confirm:${normalizeEmail(req?.body?.email)}`
+});
+
+const forgotPasswordLegacyLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_FORGOT_LEGACY_MAX || 10),
+  message: "Too many password reset attempts. Please wait and try again.",
+  keyGenerator: (req) => `${req.ip}:forgot-legacy:${normalizeEmail(req?.body?.email)}`
+});
 
 async function findUsersByEmail(normalizedEmail) {
   const dbConnected = isDbConnected();
@@ -36,7 +67,7 @@ async function findUsersByEmail(normalizedEmail) {
 }
 
 /* SIGNUP */
-router.post("/signup", async (req, res) => {
+router.post("/signup", signupLimiter, async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const normalizedEmail = normalizeEmail(email);
@@ -63,7 +94,7 @@ router.post("/signup", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     if (dbConnected) {
       const user = new User({
-        name: name ? String(name).trim() : undefined,
+        name: name ? normalizeText(name, 120) : undefined,
         email: normalizedEmail,
         password: hashedPassword
       });
@@ -73,7 +104,7 @@ router.post("/signup", async (req, res) => {
     }
 
     await localAuthStore.createUser({
-      name: name ? String(name).trim() : "",
+      name: name ? normalizeText(name, 120) : "",
       email: normalizedEmail,
       passwordHash: hashedPassword
     });
@@ -93,13 +124,48 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-/* FORGOT PASSWORD / RESET PASSWORD */
-router.post("/forgot-password", async (req, res) => {
+async function handleForgotPasswordRequest(req, res) {
   try {
-    const { email, newPassword } = req.body || {};
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail = normalizeEmail(req?.body?.email);
 
-    if (!normalizedEmail || !newPassword) {
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: "Invalid email" });
+    }
+
+    const { dbUser, localUser } = await findUsersByEmail(normalizedEmail);
+    const accountExists = !!(dbUser || localUser);
+    const isProd = String(process.env.NODE_ENV || "").toLowerCase() === "production";
+
+    let devResetCode = "";
+    if (accountExists) {
+      const code = passwordResetStore.issueResetCode(normalizedEmail);
+      if (!isProd) {
+        devResetCode = code;
+        console.info(`Password reset code for ${normalizedEmail}: ${code}`);
+      }
+    }
+
+    return res.json({
+      message:
+        "If an account exists for this email, a password reset code has been issued.",
+      ...(devResetCode ? { devResetCode } : {})
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
+async function handleForgotPasswordConfirm(req, res) {
+  try {
+    const normalizedEmail = normalizeEmail(req?.body?.email);
+    const resetCode = String(req?.body?.resetCode || "").trim();
+    const newPassword = String(req?.body?.newPassword || "");
+
+    if (!normalizedEmail || !resetCode || !newPassword) {
       return res.status(400).json({ error: "Missing fields" });
     }
 
@@ -109,6 +175,20 @@ router.post("/forgot-password", async (req, res) => {
 
     if (!isValidPassword(newPassword)) {
       return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    const verification = passwordResetStore.verifyResetCode(normalizedEmail, resetCode);
+    if (!verification?.ok) {
+      const hint =
+        verification?.reason === "expired"
+          ? "Request a new reset code and try again."
+          : verification?.reason === "locked"
+            ? "Too many invalid attempts. Request a new reset code."
+            : "";
+      return res.status(400).json({
+        error: "Invalid or expired reset code",
+        ...(hint ? { hint } : {})
+      });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -136,6 +216,8 @@ router.post("/forgot-password", async (req, res) => {
       });
     }
 
+    passwordResetStore.clearResetCode(normalizedEmail);
+
     return res.json({
       message: "Password reset successful",
       mode: updatedDatabase && updatedLocal
@@ -147,10 +229,34 @@ router.post("/forgot-password", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
+}
+
+router.post(
+  "/forgot-password/request",
+  forgotPasswordRequestLimiter,
+  handleForgotPasswordRequest
+);
+
+router.post(
+  "/forgot-password/confirm",
+  forgotPasswordConfirmLimiter,
+  handleForgotPasswordConfirm
+);
+
+// Backward-compatible endpoint with secure flow only.
+router.post("/forgot-password", forgotPasswordLegacyLimiter, async (req, res) => {
+  const hasResetCode = !!String(req?.body?.resetCode || "").trim();
+  const hasNewPassword = !!String(req?.body?.newPassword || "").trim();
+
+  if (hasResetCode || hasNewPassword) {
+    return handleForgotPasswordConfirm(req, res);
+  }
+
+  return handleForgotPasswordRequest(req, res);
 });
 
 /* LOGIN */
-router.post("/login", async (req, res) => {
+router.post("/login", loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     const normalizedEmail = normalizeEmail(email);
