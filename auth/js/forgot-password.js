@@ -4,15 +4,56 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("forgotForm");
   const errorMsg = document.getElementById("errorMsg");
   const successMsg = document.getElementById("successMsg");
-  const createAccountBtn = document.getElementById("createAccountBtn");
-
-  let pendingCreateData = null;
+  const sendCodeBtn = document.getElementById("sendCodeBtn");
+  const resetCodeInput = document.getElementById("resetCode");
+  let requestedEmail = "";
 
   function resetMessages() {
     errorMsg.innerText = "";
     successMsg.innerText = "";
-    if (createAccountBtn) createAccountBtn.style.display = "none";
-    pendingCreateData = null;
+  }
+
+  async function requestResetCode() {
+    resetMessages();
+    const email = document.getElementById("email").value.trim();
+    if (!email) {
+      errorMsg.innerText = "Email is required";
+      return;
+    }
+
+    try {
+      if (sendCodeBtn) sendCodeBtn.disabled = true;
+      const res = await window.InterviewAI.api.fetch("/forgot-password/request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const hint = data.hint ? ` ${data.hint}` : "";
+        errorMsg.innerText = (data.error || "Could not request reset code") + hint;
+        return;
+      }
+
+      requestedEmail = email.toLowerCase();
+      let message = data.message || "Reset code sent if the account exists.";
+
+      if (data?.devResetCode) {
+        message += ` Dev code: ${data.devResetCode}`;
+      }
+
+      successMsg.innerText = message;
+      if (resetCodeInput) resetCodeInput.focus();
+    } catch (err) {
+      console.error(err);
+      errorMsg.innerText = "Server not reachable";
+    } finally {
+      if (sendCodeBtn) sendCodeBtn.disabled = false;
+    }
   }
 
   form.addEventListener("submit", async (event) => {
@@ -20,10 +61,11 @@ document.addEventListener("DOMContentLoaded", () => {
     resetMessages();
 
     const email = document.getElementById("email").value.trim();
+    const resetCode = String(document.getElementById("resetCode").value || "").trim();
     const newPassword = document.getElementById("newPassword").value;
     const confirmPassword = document.getElementById("confirmPassword").value;
 
-    if (!email || !newPassword || !confirmPassword) {
+    if (!email || !resetCode || !newPassword || !confirmPassword) {
       errorMsg.innerText = "All fields required";
       return;
     }
@@ -38,35 +80,31 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    if (requestedEmail && requestedEmail !== email.toLowerCase()) {
+      errorMsg.innerText = "Email changed. Request a new reset code for this email.";
+      return;
+    }
+
     try {
-      const res = await window.InterviewAI.api.fetch("/forgot-password", {
+      const res = await window.InterviewAI.api.fetch("/forgot-password/confirm", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ email, newPassword })
+        body: JSON.stringify({ email, resetCode, newPassword })
       });
 
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         const hint = data.hint ? ` ${data.hint}` : "";
-        const isMissingAccount = data.error === "Account not found";
-        const guidance = isMissingAccount
-          ? " You can create a new account with this email below."
-          : "";
-        errorMsg.innerText = (data.error || "Reset failed") + hint + guidance;
-
-        if (isMissingAccount && createAccountBtn) {
-          pendingCreateData = { email, newPassword };
-          createAccountBtn.style.display = "block";
-        }
-
+        errorMsg.innerText = (data.error || "Reset failed") + hint;
         return;
       }
 
       successMsg.innerText = "Password reset successful. Redirecting to login...";
       form.reset();
+      requestedEmail = "";
 
       setTimeout(() => {
         window.location.href = "login.html";
@@ -77,50 +115,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  if (createAccountBtn) {
-    createAccountBtn.addEventListener("click", async () => {
-      if (!pendingCreateData) return;
-
-      errorMsg.innerText = "";
-      successMsg.innerText = "";
-
-      const { email, newPassword } = pendingCreateData;
-      const nameFallback = String(email.split("@")[0] || "User")
-        .replace(/[^a-zA-Z0-9._-]/g, " ")
-        .trim() || "User";
-
-      try {
-        const res = await window.InterviewAI.api.fetch("/signup", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            name: nameFallback,
-            email,
-            password: newPassword
-          })
-        });
-
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          errorMsg.innerText = data.error || "Unable to create account";
-          return;
-        }
-
-        successMsg.innerText = "Account created successfully. Redirecting to login...";
-        form.reset();
-        createAccountBtn.style.display = "none";
-        pendingCreateData = null;
-
-        setTimeout(() => {
-          window.location.href = "login.html";
-        }, 1300);
-      } catch (err) {
-        console.error(err);
-        errorMsg.innerText = "Server not reachable";
-      }
+  if (sendCodeBtn) {
+    sendCodeBtn.addEventListener("click", () => {
+      requestResetCode();
     });
   }
 });
