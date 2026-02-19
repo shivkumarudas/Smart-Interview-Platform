@@ -3,10 +3,15 @@ const jwt = require("jsonwebtoken");
 const TOKEN_TTL = String(process.env.JWT_EXPIRES_IN || "7d").trim() || "7d";
 const DEFAULT_DEV_SECRET = "dev-insecure-jwt-secret-change-me";
 let hasWarnedMissingSecret = false;
+const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
 
 function getJwtSecret() {
   const configured = String(process.env.JWT_SECRET || "").trim();
   if (configured) return configured;
+
+  if (isProduction) {
+    throw new Error("JWT_SECRET is required in production");
+  }
 
   if (!hasWarnedMissingSecret) {
     hasWarnedMissingSecret = true;
@@ -16,6 +21,10 @@ function getJwtSecret() {
   }
 
   return DEFAULT_DEV_SECRET;
+}
+
+function assertAuthConfig() {
+  getJwtSecret();
 }
 
 function issueAuthToken(user, mode = "database") {
@@ -90,6 +99,7 @@ function requireSameUserIdFrom(fieldPath, label = "userId") {
 }
 
 module.exports = {
+  assertAuthConfig,
   issueAuthToken,
   requireAuth,
   requireSameUserIdFrom
