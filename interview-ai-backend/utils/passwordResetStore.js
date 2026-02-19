@@ -73,6 +73,10 @@ function verifyResetCode(email, code) {
 
   if (hashCode(submittedCode) !== entry.codeHash) {
     entry.attempts = Number(entry.attempts || 0) + 1;
+    if (entry.attempts >= maxAttempts) {
+      store.delete(normalizedEmail);
+      return { ok: false, reason: "locked" };
+    }
     store.set(normalizedEmail, entry);
     return { ok: false, reason: "invalid" };
   }
