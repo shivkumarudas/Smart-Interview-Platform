@@ -23,6 +23,41 @@ const typedFallbackEl = document.getElementById("typedFallback");
 const submitTypedBtn = document.getElementById("submitTyped");
 const micLevelEl = document.getElementById("micLevel");
 const endInterviewBtn = document.getElementById("endInterviewBtn");
+const retryQuestionBtn = document.getElementById("retryQuestionBtn");
+
+const PENDING_ENTRY_QUEUE_KEY = "INTERVIEWAI_PENDING_SESSION_ENTRIES";
+const PENDING_SESSION_END_QUEUE_KEY = "INTERVIEWAI_PENDING_SESSION_ENDS";
+const MAX_PENDING_ENTRY_QUEUE = 160;
+const MAX_PENDING_SESSION_END_QUEUE = 40;
+
+function safeParseJson(value, fallback) {
+  if (!value) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  const timeout = Math.max(500, Number(timeoutMs) || 4000);
+  return new Promise((resolve, reject) => {
+    const timerId = setTimeout(() => {
+      reject(new Error(message || "Request timed out"));
+    }, timeout);
+
+    Promise.resolve(promise)
+      .then((value) => {
+        clearTimeout(timerId);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timerId);
+        reject(error);
+      });
+  });
+}
 
 /* ================= CAMERA ================= */
 const video = document.getElementById("userVideo");
@@ -45,6 +80,11 @@ let mediaChunks = [];
 let mediaRecorderMimeType = "";
 let preferRecorderMode = false;
 let forceTypedFallback = false;
+let questionRequestInFlight = false;
+let isEndingInterview = false;
+let isFlushingPendingEntries = false;
+let isFlushingPendingSessionEnds = false;
+let startFailed = false;
 const MIC_AUDIO_CONSTRAINTS = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -665,6 +705,14 @@ function setAnswerControls({ canStart, canStop, canSubmitTyped }) {
   }
 }
 
+function setRetryQuestionVisibility(visible, options = {}) {
+  if (!retryQuestionBtn) return;
+
+  retryQuestionBtn.hidden = !visible;
+  retryQuestionBtn.disabled = !!options.disabled;
+  retryQuestionBtn.textContent = String(options.label || "Retry Question");
+}
+
 function isSecureMicContext() {
   const hostname = String(window.location?.hostname || "").trim().toLowerCase();
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
@@ -701,6 +749,7 @@ function updateProgress() {
 }
 
 setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
+setRetryQuestionVisibility(false);
 updateProgress();
 setResponseStatus("Waiting for the first question");
 
@@ -729,7 +778,30 @@ if (submitTypedBtn) {
 }
 
 if (endInterviewBtn) {
-  endInterviewBtn.addEventListener("click", () => endInterview());
+  endInterviewBtn.addEventListener("click", () => {
+    void endInterview();
+  });
+}
+
+if (retryQuestionBtn) {
+  retryQuestionBtn.addEventListener("click", () => {
+    if (questionRequestInFlight || isEndingInterview) return;
+    if (startFailed) {
+      startFailed = false;
+      setRetryQuestionVisibility(false);
+      void startInterview().catch((err) => {
+        console.error("Interview start failed:", err);
+        stopTimer();
+        setAIState("idle");
+        aiText.innerText = "Unable to start interview. Please check your connection and retry.";
+        setResponseStatus("Unable to start interview");
+        setRetryQuestionVisibility(true, { label: "Retry Start" });
+        startFailed = true;
+      });
+      return;
+    }
+    void askAIQuestion({ manualRetry: true });
+  });
 }
 
 /* ================= START INTERVIEW ================= */
@@ -770,13 +842,220 @@ async function startSessionIfPossible() {
   }
 }
 
+function readPendingEntryQueue() {
+  const raw = safeParseJson(localStorage.getItem(PENDING_ENTRY_QUEUE_KEY), []);
+  return Array.isArray(raw) ? raw : [];
+}
+
+function writePendingEntryQueue(queue) {
+  const normalized = Array.isArray(queue) ? queue : [];
+  const trimmed = normalized
+    .filter((item) => item && typeof item === "object")
+    .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+    .slice(0, MAX_PENDING_ENTRY_QUEUE);
+  localStorage.setItem(PENDING_ENTRY_QUEUE_KEY, JSON.stringify(trimmed));
+}
+
+function enqueuePendingSessionEntry(sessionId, entry) {
+  if (!sessionId || !entry || typeof entry !== "object") return;
+
+  const queue = readPendingEntryQueue();
+  const index = Number(entry?.index) || 0;
+  const key = `${sessionId}:${index || Date.now()}`;
+  const nextItem = {
+    key,
+    sessionId: String(sessionId),
+    entry,
+    attempts: 0,
+    queuedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  const existingIndex = queue.findIndex((item) => String(item?.key || "") === key);
+  if (existingIndex >= 0) {
+    const existing = queue[existingIndex];
+    queue[existingIndex] = {
+      ...existing,
+      ...nextItem,
+      attempts: Number(existing?.attempts || 0),
+      queuedAt: existing?.queuedAt || nextItem.queuedAt
+    };
+  } else {
+    queue.push(nextItem);
+  }
+
+  writePendingEntryQueue(queue);
+}
+
+async function requestSessionEntrySave(sessionId, entry, { timeoutMs = 5000 } = {}) {
+  const res = await withTimeout(
+    window.InterviewAI.api.fetch(`/interview/session/${sessionId}/entry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry)
+    }),
+    timeoutMs,
+    "Saving answer took too long"
+  );
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to save answer (${res.status})`);
+  }
+}
+
+async function flushPendingEntryQueue({ maxItems = 16 } = {}) {
+  if (isFlushingPendingEntries || !window.InterviewAI?.api?.fetch) return;
+
+  const queue = readPendingEntryQueue();
+  if (!queue.length) return;
+
+  isFlushingPendingEntries = true;
+  try {
+    const keep = [];
+    let processed = 0;
+
+    for (const item of queue) {
+      if (processed >= Math.max(1, Number(maxItems) || 1)) {
+        keep.push(item);
+        continue;
+      }
+
+      const sessionId = String(item?.sessionId || "").trim();
+      const entry = item?.entry;
+      if (!sessionId || !entry || typeof entry !== "object") continue;
+
+      try {
+        await requestSessionEntrySave(sessionId, entry, { timeoutMs: 4500 });
+        processed += 1;
+      } catch {
+        keep.push({
+          ...item,
+          attempts: Number(item?.attempts || 0) + 1,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
+
+    writePendingEntryQueue(keep);
+  } finally {
+    isFlushingPendingEntries = false;
+  }
+}
+
+function readPendingSessionEndQueue() {
+  const raw = safeParseJson(localStorage.getItem(PENDING_SESSION_END_QUEUE_KEY), []);
+  return Array.isArray(raw) ? raw : [];
+}
+
+function writePendingSessionEndQueue(queue) {
+  const normalized = Array.isArray(queue) ? queue : [];
+  const trimmed = normalized
+    .filter((item) => item && typeof item === "object")
+    .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
+    .slice(0, MAX_PENDING_SESSION_END_QUEUE);
+  localStorage.setItem(PENDING_SESSION_END_QUEUE_KEY, JSON.stringify(trimmed));
+}
+
+function enqueuePendingSessionEnd(sessionId, endedAt) {
+  if (!sessionId || !endedAt) return;
+
+  const queue = readPendingSessionEndQueue();
+  const existingIndex = queue.findIndex(
+    (item) => String(item?.sessionId || "").trim() === String(sessionId).trim()
+  );
+
+  const next = {
+    sessionId: String(sessionId),
+    endedAt: String(endedAt),
+    attempts: 0,
+    queuedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (existingIndex >= 0) {
+    queue[existingIndex] = {
+      ...queue[existingIndex],
+      ...next,
+      attempts: Number(queue[existingIndex]?.attempts || 0),
+      queuedAt: queue[existingIndex]?.queuedAt || next.queuedAt
+    };
+  } else {
+    queue.push(next);
+  }
+
+  writePendingSessionEndQueue(queue);
+}
+
+async function requestSessionEndSave(sessionId, endedAt, { timeoutMs = 3500 } = {}) {
+  const res = await withTimeout(
+    window.InterviewAI.api.fetch(`/interview/session/${sessionId}/end`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endedAt }),
+      keepalive: true
+    }),
+    timeoutMs,
+    "Saving interview end state took too long"
+  );
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to end session (${res.status})`);
+  }
+}
+
+async function flushPendingSessionEndQueue({ maxItems = 10 } = {}) {
+  if (isFlushingPendingSessionEnds || !window.InterviewAI?.api?.fetch) return;
+
+  const queue = readPendingSessionEndQueue();
+  if (!queue.length) return;
+
+  isFlushingPendingSessionEnds = true;
+  try {
+    const keep = [];
+    let processed = 0;
+
+    for (const item of queue) {
+      if (processed >= Math.max(1, Number(maxItems) || 1)) {
+        keep.push(item);
+        continue;
+      }
+
+      const sessionId = String(item?.sessionId || "").trim();
+      const endedAt = String(item?.endedAt || "").trim();
+      if (!sessionId || !endedAt) continue;
+
+      try {
+        await requestSessionEndSave(sessionId, endedAt, { timeoutMs: 3000 });
+        processed += 1;
+      } catch {
+        keep.push({
+          ...item,
+          attempts: Number(item?.attempts || 0) + 1,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
+
+    writePendingSessionEndQueue(keep);
+  } finally {
+    isFlushingPendingSessionEnds = false;
+  }
+}
+
 async function startInterview() {
+  startFailed = false;
+  setRetryQuestionVisibility(false);
+
   candidateProfile = await loadCandidateProfile();
   candidateSpeechLocale = getSpeechLocaleFromProfileLanguage(candidateProfile?.language);
   if (recognition) {
     recognition.lang = candidateSpeechLocale;
   }
   await startSessionIfPossible();
+  await flushPendingEntryQueue({ maxItems: 24 });
+  await flushPendingSessionEndQueue({ maxItems: 12 });
   startTimer();
 
   const candidateName = (candidateProfile?.name || user.name || "Candidate").trim();
@@ -795,17 +1074,24 @@ setTimeout(() => {
     console.error("Interview start failed:", err);
     stopTimer();
     setAIState("idle");
-    aiText.innerText = "Unable to start interview. Please refresh and try again.";
+    aiText.innerText = "Unable to start interview. Please check your connection and retry.";
     setResponseStatus("Unable to start interview");
+    setRetryQuestionVisibility(true, { label: "Retry Start" });
+    startFailed = true;
   });
 }, 1500);
 
 /* ================= GET AI QUESTION ================= */
-async function askAIQuestion() {
+async function askAIQuestion({ manualRetry = false } = {}) {
+  if (questionRequestInFlight) return;
+
   if (questionCount >= maxQuestions) {
-    endInterview();
+    void endInterview();
     return;
   }
+
+  questionRequestInFlight = true;
+  setRetryQuestionVisibility(false);
 
   try {
     setAIState("thinking");
@@ -842,6 +1128,7 @@ async function askAIQuestion() {
     }
 
     questionCount++;
+    startFailed = false;
     currentQuestion = String(data.question || "").trim();
     currentQuestionJson = data.questionJson && typeof data.questionJson === "object"
       ? data.questionJson
@@ -871,7 +1158,16 @@ async function askAIQuestion() {
     console.error("Question error:", err);
     aiText.innerText = normalizeApiErrorMessage(err?.message, "Failed to get question");
     setAIState("idle");
-    setResponseStatus("Unable to load question");
+    answerText.innerText =
+      "Unable to load the next question right now. Use Retry Question to continue.";
+    setResponseStatus(manualRetry ? "Question retry failed" : "Unable to load question");
+    setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
+    setRetryQuestionVisibility(true, {
+      disabled: false,
+      label: manualRetry ? "Retry Again" : "Retry Question"
+    });
+  } finally {
+    questionRequestInFlight = false;
   }
 }
 
@@ -1250,18 +1546,22 @@ function stopAnswerCapture({ submit }) {
 
 initSpeechRecognition();
 initMediaAccess();
+window.addEventListener("online", () => {
+  void flushPendingEntryQueue({ maxItems: 24 });
+  void flushPendingSessionEndQueue({ maxItems: 12 });
+});
 
 async function saveSessionEntry(entry) {
-  if (!currentSessionId) return;
+  if (!currentSessionId) return false;
 
   try {
-    await window.InterviewAI.api.fetch(`/interview/session/${currentSessionId}/entry`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(entry)
-    });
-  } catch {
-    // ignore
+    await requestSessionEntrySave(currentSessionId, entry, { timeoutMs: 4500 });
+    await flushPendingEntryQueue({ maxItems: 8 });
+    return true;
+  } catch (err) {
+    enqueuePendingSessionEntry(currentSessionId, entry);
+    console.warn("Queued session entry for retry:", err?.message || err);
+    return false;
   }
 }
 
@@ -1366,7 +1666,10 @@ async function submitAnswer(answerValue, { source } = {}) {
 }
 
 /* ================= END INTERVIEW ================= */
-function endInterview() {
+async function endInterview() {
+  if (isEndingInterview) return;
+  isEndingInterview = true;
+
   try {
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
       shouldSubmitOnEnd = false;
@@ -1385,7 +1688,11 @@ function endInterview() {
   stopTimer();
   setResponseStatus("Interview complete");
   setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
-  if (endInterviewBtn) endInterviewBtn.disabled = true;
+  setRetryQuestionVisibility(false);
+  if (endInterviewBtn) {
+    endInterviewBtn.disabled = true;
+    endInterviewBtn.textContent = "Ending...";
+  }
 
   setAIState("idle");
   speak("Thank you. This concludes your interview.");
@@ -1415,17 +1722,20 @@ function endInterview() {
   if (currentSessionId) {
     localStorage.setItem("lastInterviewSessionId", currentSessionId);
     localStorage.removeItem("currentInterviewSessionId");
+    setResponseStatus("Finalizing interview...");
 
-    window.InterviewAI.api.fetch(`/interview/session/${currentSessionId}/end`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endedAt })
-    }).catch(() => {
-      // ignore
-    });
+    try {
+      await flushPendingEntryQueue({ maxItems: 48 });
+      await requestSessionEndSave(currentSessionId, endedAt, { timeoutMs: 3200 });
+      await flushPendingSessionEndQueue({ maxItems: 24 });
+    } catch (err) {
+      enqueuePendingSessionEnd(currentSessionId, endedAt);
+      console.warn("Queued session end for retry:", err?.message || err);
+      setResponseStatus("Interview complete (sync pending)");
+    }
   }
 
   setTimeout(() => {
     window.location.href = "../report/report.html";
-  }, 3000);
+  }, 2200);
 }
