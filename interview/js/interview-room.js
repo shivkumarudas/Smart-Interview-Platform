@@ -90,6 +90,29 @@ const MIC_AUDIO_CONSTRAINTS = {
   noiseSuppression: true,
   autoGainControl: true
 };
+const INTERVIEW_TTS_VOICE = "Aoede";
+const FEMALE_BROWSER_VOICE_HINTS = [
+  "female",
+  "woman",
+  "aoede",
+  "samantha",
+  "victoria",
+  "zira",
+  "allison",
+  "aria",
+  "ava",
+  "serena"
+];
+const MALE_BROWSER_VOICE_HINTS = [
+  "male",
+  "man",
+  "david",
+  "mark",
+  "thomas",
+  "daniel",
+  "fred",
+  "alex"
+];
 
 function getLiveAudioTrack(stream) {
   if (!stream || typeof stream.getAudioTracks !== "function") return null;
@@ -370,6 +393,12 @@ function stopAISpeechOutput() {
   }
 }
 
+function voiceNameMatchesHints(voice, hints) {
+  const name = String(voice?.name || "").toLowerCase();
+  if (!name) return false;
+  return hints.some((hint) => name.includes(hint));
+}
+
 function pickBrowserVoice(locale) {
   const synth = window.speechSynthesis;
   if (!synth || typeof synth.getVoices !== "function") return null;
@@ -378,15 +407,28 @@ function pickBrowserVoice(locale) {
   if (!Array.isArray(voices) || !voices.length) return null;
 
   const normalizedLocale = String(locale || "").toLowerCase();
-  const exact = voices.find((voice) => String(voice.lang || "").toLowerCase() === normalizedLocale);
-  if (exact) return exact;
+  const exactMatches = voices.filter(
+    (voice) => String(voice.lang || "").toLowerCase() === normalizedLocale
+  );
 
   const prefix = normalizedLocale.split("-")[0];
-  const byPrefix = voices.find((voice) =>
+  const prefixMatches = voices.filter((voice) =>
     String(voice.lang || "").toLowerCase().startsWith(prefix)
   );
 
-  return byPrefix || null;
+  const localePool = exactMatches.length ? exactMatches : prefixMatches.length ? prefixMatches : voices;
+
+  const femalePreferred = localePool.find((voice) =>
+    voiceNameMatchesHints(voice, FEMALE_BROWSER_VOICE_HINTS)
+  );
+  if (femalePreferred) return femalePreferred;
+
+  const nonMale = localePool.find((voice) =>
+    !voiceNameMatchesHints(voice, MALE_BROWSER_VOICE_HINTS)
+  );
+  if (nonMale) return nonMale;
+
+  return localePool[0] || null;
 }
 
 function splitTextForSpeech(text) {
@@ -433,7 +475,8 @@ async function requestBackendTtsAudio(text) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         text,
-        language: candidateSpeechLocale
+        language: candidateSpeechLocale,
+        voice: INTERVIEW_TTS_VOICE
       }),
       signal: controller.signal
     });
@@ -1061,8 +1104,7 @@ async function startInterview() {
   const candidateName = (candidateProfile?.name || user.name || "Candidate").trim();
   const interviewType = String(interviewConfig.interviewType || "technical").toLowerCase();
   const difficulty = String(interviewConfig.difficulty || "standard").toLowerCase();
-  const intro = `Hello ${candidateName}. Welcome to your ${difficulty} ${interviewType} interview.
-I will ask ${maxQuestions} questions. Answer naturally, like a real interview conversation.`;
+  const intro = `Hello Welcome to your ${difficulty} ${interviewType} interview.`;
 
   aiText.innerText = intro;
   setResponseStatus("Interviewer introduction");
