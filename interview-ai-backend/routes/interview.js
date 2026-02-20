@@ -355,7 +355,7 @@ router.post("/question", requireAuth, questionLimiter, async (req, res) => {
       return res.status(503).json({
         success: false,
         error:
-          "Gemini quota exceeded. Set GEMINI_MODEL=gemini-flash-lite-latest in interview-ai-backend/.env, wait for reset, or upgrade billing."
+          "Gemini quota exceeded. Set GEMINI_MODEL=gemini-flash-latest in interview-ai-backend/.env, wait for reset, or upgrade billing."
       });
     }
     if (
@@ -409,7 +409,7 @@ router.post("/evaluate", requireAuth, evaluateLimiter, async (req, res) => {
       return res.status(503).json({
         success: false,
         error:
-          "Gemini quota exceeded. Set GEMINI_MODEL=gemini-flash-lite-latest in interview-ai-backend/.env, wait for reset, or upgrade billing."
+          "Gemini quota exceeded. Set GEMINI_MODEL=gemini-flash-latest in interview-ai-backend/.env, wait for reset, or upgrade billing."
       });
     }
     if (
