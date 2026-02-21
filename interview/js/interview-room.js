@@ -86,6 +86,7 @@ let isEndingInterview = false;
 let isFlushingPendingEntries = false;
 let isFlushingPendingSessionEnds = false;
 let startFailed = false;
+let roomExitCleanupDone = false;
 let latestMicErrorCode = "";
 let latestMicErrorDetail = "";
 const MIC_AUDIO_CONSTRAINTS = {
@@ -578,6 +579,74 @@ function stopAISpeechOutput() {
       // ignore
     }
   }
+}
+
+function stopUserMediaStream() {
+  if (!userStream) return;
+
+  userStream.getTracks().forEach((track) => {
+    try {
+      track.stop();
+    } catch {
+      // ignore
+    }
+  });
+  userStream = null;
+}
+
+function handleRoomExitCleanup() {
+  if (roomExitCleanupDone) return;
+  roomExitCleanupDone = true;
+
+  stopAISpeechOutput();
+
+  shouldSubmitOnEnd = false;
+  isCapturing = false;
+  micActivationPending = false;
+  silenceStartedAt = null;
+
+  if (recognition) {
+    recognition.onresult = null;
+    recognition.onend = null;
+    recognition.onerror = null;
+    try {
+      recognition.stop();
+    } catch {
+      // ignore
+    }
+  }
+
+  if (mediaRecorder) {
+    mediaRecorder.ondataavailable = null;
+    mediaRecorder.onerror = null;
+    mediaRecorder.onstop = null;
+    if (mediaRecorder.state !== "inactive") {
+      try {
+        mediaRecorder.stop();
+      } catch {
+        // ignore
+      }
+    }
+    mediaRecorder = null;
+    mediaChunks = [];
+  }
+
+  cancelAnimationFrame(meterAnimationId);
+  meterAnimationId = null;
+  analyserNode = null;
+  if (micLevelEl) micLevelEl.style.width = "0%";
+
+  if (audioContext && typeof audioContext.close === "function" && audioContext.state !== "closed") {
+    try {
+      void audioContext.close();
+    } catch {
+      // ignore
+    }
+  }
+  audioContext = null;
+
+  stopTimer();
+  stopUserMediaStream();
 }
 
 function voiceNameMatchesHints(voice, hints) {
@@ -1815,6 +1884,8 @@ function stopAnswerCapture({ submit }) {
 
 initSpeechRecognition();
 initMediaAccess();
+window.addEventListener("pagehide", handleRoomExitCleanup);
+window.addEventListener("beforeunload", handleRoomExitCleanup);
 window.addEventListener("online", () => {
   void flushPendingEntryQueue({ maxItems: 24 });
   void flushPendingSessionEndQueue({ maxItems: 12 });
@@ -1983,10 +2054,7 @@ async function endInterview() {
     });
   }
 
-  if (userStream) {
-    userStream.getTracks().forEach((track) => track.stop());
-    userStream = null;
-  }
+  stopUserMediaStream();
 
   if (currentSessionId) {
     localStorage.setItem("lastInterviewSessionId", currentSessionId);
@@ -2005,6 +2073,7 @@ async function endInterview() {
   }
 
   setTimeout(() => {
+    handleRoomExitCleanup();
     window.location.href = "../report/report.html";
   }, 2200);
 }
