@@ -17,7 +17,8 @@ const progressText = document.getElementById("progressText");
 const sessionTimerEl = document.getElementById("sessionTimer");
 const liveStateEl = document.getElementById("liveState");
 const responseStatusEl = document.getElementById("responseStatus");
-const answerToggleBtn = document.getElementById("answerToggleBtn");
+const startAnswerBtn = document.getElementById("startAnswerBtn");
+const stopAnswerBtn = document.getElementById("stopAnswerBtn");
 const typedAnswerEl = document.getElementById("typedAnswer");
 const typedFallbackEl = document.getElementById("typedFallback");
 const submitTypedBtn = document.getElementById("submitTyped");
@@ -917,15 +918,8 @@ function canCaptureVoice() {
 }
 
 function setAnswerControls({ canStart, canStop, canSubmitTyped }) {
-  const isRecording = !!canStop;
-  const canUsePrimaryControl = !!(canStart || canStop);
-
-  if (answerToggleBtn) {
-    answerToggleBtn.disabled = !canUsePrimaryControl;
-    answerToggleBtn.innerText = isRecording ? "Finish Answer" : "Start Answer";
-    answerToggleBtn.classList.toggle("recording", isRecording);
-    answerToggleBtn.setAttribute("aria-pressed", String(isRecording));
-  }
+  if (startAnswerBtn) startAnswerBtn.disabled = !canStart;
+  if (stopAnswerBtn) stopAnswerBtn.disabled = !canStop;
 
   if (submitTypedBtn) submitTypedBtn.disabled = !canSubmitTyped;
 
@@ -982,14 +976,19 @@ setRetryQuestionVisibility(false);
 updateProgress();
 setResponseStatus("Waiting for the first question");
 
-if (answerToggleBtn) {
-  answerToggleBtn.addEventListener("click", async () => {
+if (startAnswerBtn) {
+  startAnswerBtn.addEventListener("click", async () => {
     await ensureAudioContextRunning();
-    if (isCapturing) {
-      stopAnswerCapture({ submit: true });
-      return;
-    }
+    if (isCapturing) return;
     await beginAnswerCapture();
+  });
+}
+
+if (stopAnswerBtn) {
+  stopAnswerBtn.addEventListener("click", async () => {
+    await ensureAudioContextRunning();
+    if (!isCapturing) return;
+    stopAnswerCapture({ submit: true });
   });
 }
 
