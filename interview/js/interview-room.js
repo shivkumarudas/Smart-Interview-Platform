@@ -127,13 +127,15 @@ function getLiveVideoTrack(stream) {
 }
 
 function normalizeMicErrorCode(errorLike) {
-  const raw = String(
-    errorLike?.code ||
-    errorLike?.name ||
-    errorLike?.error ||
-    errorLike?.message ||
-    ""
-  )
+  const raw = [
+    errorLike?.code,
+    errorLike?.name,
+    errorLike?.error,
+    errorLike?.message,
+    typeof errorLike === "string" ? errorLike : ""
+  ]
+    .filter(Boolean)
+    .join(" ")
     .trim()
     .toLowerCase();
 
@@ -142,17 +144,32 @@ function normalizeMicErrorCode(errorLike) {
   if (
     raw.includes("notallowed") ||
     raw.includes("not-allowed") ||
+    raw.includes("denied") ||
+    raw.includes("dismissed") ||
+    raw.includes("blocked") ||
+    raw.includes("permission denied") ||
+    raw.includes("operation not permitted") ||
     raw.includes("permission") ||
     raw === "service-not-allowed"
   ) {
     return "permission-denied";
   }
 
-  if (raw.includes("notreadable") || raw.includes("track start") || raw.includes("audio-capture")) {
+  if (
+    raw.includes("notreadable") ||
+    raw.includes("track start") ||
+    raw.includes("audio-capture") ||
+    raw.includes("could not start audio source") ||
+    raw.includes("device in use")
+  ) {
     return "device-busy";
   }
 
-  if (raw.includes("notfound") || raw.includes("devicesnotfound")) {
+  if (
+    raw.includes("notfound") ||
+    raw.includes("devicesnotfound") ||
+    raw.includes("requested device not found")
+  ) {
     return "device-missing";
   }
 
@@ -161,6 +178,10 @@ function normalizeMicErrorCode(errorLike) {
   }
 
   if (raw.includes("notsupported") || raw.includes("not supported")) {
+    return "unsupported";
+  }
+
+  if (raw.includes("typeerror") && raw.includes("getusermedia")) {
     return "unsupported";
   }
 
@@ -180,6 +201,10 @@ function normalizeMicErrorCode(errorLike) {
     return "aborted";
   }
 
+  if (raw.includes("invalidstate") || raw.includes("failed to start")) {
+    return "aborted";
+  }
+
   return "unknown";
 }
 
@@ -187,6 +212,36 @@ function describeMicError(errorLike) {
   const name = String(errorLike?.name || errorLike?.code || "").trim();
   const message = String(errorLike?.message || errorLike?.error || "").trim();
   return [name, message].filter(Boolean).join(": ");
+}
+
+async function resolveMicErrorCode(errorLike) {
+  const normalized = normalizeMicErrorCode(errorLike);
+  if (normalized && normalized !== "unknown") return normalized;
+
+  if (navigator.permissions?.query) {
+    try {
+      const permission = await navigator.permissions.query({ name: "microphone" });
+      if (permission?.state === "denied") {
+        return "permission-denied";
+      }
+    } catch {
+      // Ignore unsupported permission query behavior.
+    }
+  }
+
+  if (navigator.mediaDevices?.enumerateDevices) {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const hasAudioInput = devices.some((device) => device?.kind === "audioinput");
+      if (!hasAudioInput) {
+        return "device-missing";
+      }
+    } catch {
+      // Ignore enumeration errors and keep unknown classification.
+    }
+  }
+
+  return normalized || "unknown";
 }
 
 async function requestUserAudioStream() {
@@ -284,7 +339,7 @@ async function ensureAudioInputStream() {
     latestMicErrorDetail = "";
     return true;
   } catch (err) {
-    latestMicErrorCode = normalizeMicErrorCode(err);
+    latestMicErrorCode = await resolveMicErrorCode(err);
     latestMicErrorDetail = describeMicError(err);
     console.warn("Unable to initialize audio input:", latestMicErrorDetail || latestMicErrorCode);
     return false;
@@ -308,7 +363,7 @@ async function initMediaAccess() {
     latestMicErrorDetail = "";
     return;
   } catch (err) {
-    latestMicErrorCode = normalizeMicErrorCode(err);
+    latestMicErrorCode = await resolveMicErrorCode(err);
     latestMicErrorDetail = describeMicError(err);
     // Continue to audio-only fallback.
   }
@@ -324,7 +379,7 @@ async function initMediaAccess() {
     setResponseStatus("Camera unavailable. Microphone is active.");
     return;
   } catch (err) {
-    latestMicErrorCode = normalizeMicErrorCode(err);
+    latestMicErrorCode = await resolveMicErrorCode(err);
     latestMicErrorDetail = describeMicError(err);
     console.warn("Microphone activation failed:", latestMicErrorDetail || latestMicErrorCode);
     requestMicActivation({ allowTypedFallback: true, reason: latestMicErrorCode });
@@ -1671,9 +1726,13 @@ function requestMicActivation({ allowTypedFallback = true, reason = "" } = {}) {
     answerText.innerText =
       "Speech language is not supported in this browser. Change browser language or type your answer.";
     setResponseStatus("Speech language unsupported");
+  } else if (failureReason === "aborted") {
+    answerText.innerText =
+      "Microphone startup was interrupted. Close other apps using mic, reload the page, then click Start Answer.";
+    setResponseStatus("Microphone startup interrupted");
   } else if (failureReason && failureReason !== "permission-denied") {
     answerText.innerText =
-      "Microphone is unavailable right now. Check browser site settings, then click Start Answer.";
+      "Microphone could not start. Close other apps/tabs using mic, reload, then click Start Answer.";
     setResponseStatus("Microphone unavailable");
     if (latestMicErrorDetail) {
       console.warn("Microphone unavailable detail:", latestMicErrorDetail);
