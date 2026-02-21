@@ -407,6 +407,7 @@
 .action-bar {
   padding: 12px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
   position: relative;
@@ -435,8 +436,9 @@
   box-shadow: 0 10px 24px rgba(18, 126, 114, 0.3);
 }
 
-.primary-btn.recording {
+.stop-btn {
   background: linear-gradient(120deg, #c6453c, #de5d54);
+  color: #ffffff;
   box-shadow: 0 10px 24px rgba(198, 69, 60, 0.28);
 }
 
