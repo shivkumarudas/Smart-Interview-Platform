@@ -21,6 +21,43 @@ body {
   background: radial-gradient(circle at top, #16233b, var(--bg));
   color: var(--text);
   min-height: 100vh;
+  display: flex;
+}
+
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding: 30px 20px;
+  color: #fff;
+  background: linear-gradient(180deg, #0f2a4d, #143c6e);
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 40px;
+}
+
+.menu a {
+  display: block;
+  color: #fff;
+  padding: 13px 14px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.menu a:hover,
+.menu a.active {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.main {
+  margin-left: 260px;
+  width: calc(100% - 260px);
+  min-height: 100vh;
 }
 
 a {
@@ -267,6 +304,17 @@ a {
   }
 }
 
+@media (max-width: 920px) {
+  .sidebar {
+    display: none;
+  }
+
+  .main {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
 @media print {
   body {
     background: #ffffff;
@@ -281,6 +329,15 @@ a {
 
   .report-page {
     padding: 0;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .main {
+    margin-left: 0;
+    width: 100%;
   }
 
   .hero-card,
