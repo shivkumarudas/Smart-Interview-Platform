@@ -85,6 +85,8 @@ let isEndingInterview = false;
 let isFlushingPendingEntries = false;
 let isFlushingPendingSessionEnds = false;
 let startFailed = false;
+let latestMicErrorCode = "";
+let latestMicErrorDetail = "";
 const MIC_AUDIO_CONSTRAINTS = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -124,6 +126,120 @@ function getLiveVideoTrack(stream) {
   return stream.getVideoTracks().find((track) => track?.readyState === "live") || null;
 }
 
+function normalizeMicErrorCode(errorLike) {
+  const raw = String(
+    errorLike?.code ||
+    errorLike?.name ||
+    errorLike?.error ||
+    errorLike?.message ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (!raw) return "";
+
+  if (
+    raw.includes("notallowed") ||
+    raw.includes("not-allowed") ||
+    raw.includes("permission") ||
+    raw === "service-not-allowed"
+  ) {
+    return "permission-denied";
+  }
+
+  if (raw.includes("notreadable") || raw.includes("track start") || raw.includes("audio-capture")) {
+    return "device-busy";
+  }
+
+  if (raw.includes("notfound") || raw.includes("devicesnotfound")) {
+    return "device-missing";
+  }
+
+  if (raw.includes("overconstrained") || raw.includes("constraint")) {
+    return "constraints-failed";
+  }
+
+  if (raw.includes("notsupported") || raw.includes("not supported")) {
+    return "unsupported";
+  }
+
+  if (raw.includes("network")) {
+    return "network";
+  }
+
+  if (raw.includes("language-not-supported") || raw.includes("language not supported")) {
+    return "language-not-supported";
+  }
+
+  if (raw.includes("security")) {
+    return "insecure-context";
+  }
+
+  if (raw.includes("abort")) {
+    return "aborted";
+  }
+
+  return "unknown";
+}
+
+function describeMicError(errorLike) {
+  const name = String(errorLike?.name || errorLike?.code || "").trim();
+  const message = String(errorLike?.message || errorLike?.error || "").trim();
+  return [name, message].filter(Boolean).join(": ");
+}
+
+async function requestUserAudioStream() {
+  const terminalCodes = new Set([
+    "permission-denied",
+    "device-busy",
+    "device-missing",
+    "insecure-context"
+  ]);
+  const attempts = [
+    { audio: MIC_AUDIO_CONSTRAINTS },
+    { audio: true }
+  ];
+  let lastError = null;
+
+  for (const constraints of attempts) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      lastError = err;
+      const code = normalizeMicErrorCode(err);
+      if (terminalCodes.has(code)) break;
+    }
+  }
+
+  throw lastError || new Error("Unable to access microphone");
+}
+
+async function requestUserVideoAudioStream() {
+  const terminalCodes = new Set([
+    "permission-denied",
+    "device-busy",
+    "insecure-context"
+  ]);
+  const attempts = [
+    { video: { facingMode: "user" }, audio: MIC_AUDIO_CONSTRAINTS },
+    { video: { facingMode: "user" }, audio: true }
+  ];
+  let lastError = null;
+
+  for (const constraints of attempts) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (err) {
+      lastError = err;
+      const code = normalizeMicErrorCode(err);
+      if (terminalCodes.has(code)) break;
+    }
+  }
+
+  throw lastError || new Error("Unable to access camera and microphone");
+}
+
 function applyUserStream(stream, { clearVideoIfMissing = false } = {}) {
   userStream = stream || null;
 
@@ -142,16 +258,20 @@ function applyUserStream(stream, { clearVideoIfMissing = false } = {}) {
 }
 
 async function ensureAudioInputStream() {
-  if (getLiveAudioTrack(userStream)) return true;
+  if (getLiveAudioTrack(userStream)) {
+    latestMicErrorCode = "";
+    latestMicErrorDetail = "";
+    return true;
+  }
 
   if (!navigator.mediaDevices?.getUserMedia) {
+    latestMicErrorCode = "unsupported";
+    latestMicErrorDetail = "getUserMedia is unavailable";
     return false;
   }
 
   try {
-    const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
-      audio: MIC_AUDIO_CONSTRAINTS
-    });
+    const audioOnlyStream = await requestUserAudioStream();
 
     const existingVideoTrack = getLiveVideoTrack(userStream);
     const mergedStream = existingVideoTrack
@@ -160,43 +280,54 @@ async function ensureAudioInputStream() {
 
     applyUserStream(mergedStream, { clearVideoIfMissing: true });
     setupMicMeter(mergedStream);
+    latestMicErrorCode = "";
+    latestMicErrorDetail = "";
     return true;
-  } catch {
+  } catch (err) {
+    latestMicErrorCode = normalizeMicErrorCode(err);
+    latestMicErrorDetail = describeMicError(err);
+    console.warn("Unable to initialize audio input:", latestMicErrorDetail || latestMicErrorCode);
     return false;
   }
 }
 
 async function initMediaAccess() {
   if (!navigator.mediaDevices?.getUserMedia) {
-    requestMicActivation({ allowTypedFallback: true });
+    latestMicErrorCode = "unsupported";
+    latestMicErrorDetail = "getUserMedia is unavailable";
+    requestMicActivation({ allowTypedFallback: true, reason: "unsupported" });
     return;
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user" },
-      audio: MIC_AUDIO_CONSTRAINTS
-    });
+    const stream = await requestUserVideoAudioStream();
 
     applyUserStream(stream);
     setupMicMeter(stream);
+    latestMicErrorCode = "";
+    latestMicErrorDetail = "";
     return;
-  } catch {
+  } catch (err) {
+    latestMicErrorCode = normalizeMicErrorCode(err);
+    latestMicErrorDetail = describeMicError(err);
     // Continue to audio-only fallback.
   }
 
   try {
-    const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
-      audio: MIC_AUDIO_CONSTRAINTS
-    });
+    const audioOnlyStream = await requestUserAudioStream();
 
     applyUserStream(audioOnlyStream, { clearVideoIfMissing: true });
     setupMicMeter(audioOnlyStream);
+    latestMicErrorCode = "";
+    latestMicErrorDetail = "";
 
     setResponseStatus("Camera unavailable. Microphone is active.");
     return;
-  } catch {
-    requestMicActivation({ allowTypedFallback: true });
+  } catch (err) {
+    latestMicErrorCode = normalizeMicErrorCode(err);
+    latestMicErrorDetail = describeMicError(err);
+    console.warn("Microphone activation failed:", latestMicErrorDetail || latestMicErrorCode);
+    requestMicActivation({ allowTypedFallback: true, reason: latestMicErrorCode });
   }
 }
 
@@ -1359,7 +1490,7 @@ function initSpeechRecognition() {
         "Speech recognition is unavailable. Switching to recorder mode..."
       );
       if (!switched) {
-        requestMicActivation({ allowTypedFallback: true });
+        requestMicActivation({ allowTypedFallback: true, reason: errorCode });
       }
       return;
     }
@@ -1370,7 +1501,7 @@ function initSpeechRecognition() {
         "Browser speech API blocked. Switching to recorder mode..."
       );
       if (!switched) {
-        requestMicActivation({ allowTypedFallback: true });
+        requestMicActivation({ allowTypedFallback: true, reason: errorCode });
       }
       return;
     }
@@ -1450,6 +1581,8 @@ function startRecorderCapture() {
     mediaRecorderMimeType = mediaRecorder.mimeType || mediaRecorderMimeType || "audio/webm";
   } catch (err) {
     console.warn("MediaRecorder unavailable:", err?.message || err);
+    latestMicErrorCode = normalizeMicErrorCode(err) || "unsupported";
+    latestMicErrorDetail = describeMicError(err);
     mediaRecorder = null;
     return false;
   }
@@ -1488,8 +1621,12 @@ function startRecorderCapture() {
 
   try {
     mediaRecorder.start(200);
+    latestMicErrorCode = "";
+    latestMicErrorDetail = "";
     return true;
   } catch (err) {
+    latestMicErrorCode = normalizeMicErrorCode(err) || "unknown";
+    latestMicErrorDetail = describeMicError(err);
     isCapturing = false;
     shouldSubmitOnEnd = false;
     mediaChunks = [];
@@ -1498,11 +1635,12 @@ function startRecorderCapture() {
   }
 }
 
-function requestMicActivation({ allowTypedFallback = true } = {}) {
+function requestMicActivation({ allowTypedFallback = true, reason = "" } = {}) {
   if (micActivationPending) return;
   micActivationPending = true;
   forceTypedFallback = allowTypedFallback || !canCaptureVoice();
   const canAnswerNow = isAnswerWindowOpen;
+  const failureReason = normalizeMicErrorCode(reason) || latestMicErrorCode;
 
   if (!canCaptureVoice()) {
     answerText.innerText = "Voice input is unavailable in this browser. Type your answer instead.";
@@ -1511,6 +1649,35 @@ function requestMicActivation({ allowTypedFallback = true } = {}) {
     answerText.innerText =
       "Microphone requires HTTPS or localhost. Open this app from https:// or http://localhost.";
     setResponseStatus("Insecure context for microphone");
+  } else if (failureReason === "device-busy") {
+    answerText.innerText =
+      "Microphone is in use by another app or browser tab. Close other mic users, then click Start Answer.";
+    setResponseStatus("Microphone busy");
+  } else if (failureReason === "device-missing") {
+    answerText.innerText = "No microphone detected. Connect a mic, then click Start Answer.";
+    setResponseStatus("No microphone detected");
+  } else if (failureReason === "constraints-failed") {
+    answerText.innerText =
+      "Microphone settings failed on this device. Try another mic/browser, then click Start Answer.";
+    setResponseStatus("Microphone settings error");
+  } else if (failureReason === "unsupported") {
+    answerText.innerText = "This browser cannot access microphone input. Type your answer instead.";
+    setResponseStatus("Typed input mode");
+  } else if (failureReason === "network") {
+    answerText.innerText =
+      "Speech service network error. Check your connection, then click Start Answer again.";
+    setResponseStatus("Speech service unavailable");
+  } else if (failureReason === "language-not-supported") {
+    answerText.innerText =
+      "Speech language is not supported in this browser. Change browser language or type your answer.";
+    setResponseStatus("Speech language unsupported");
+  } else if (failureReason && failureReason !== "permission-denied") {
+    answerText.innerText =
+      "Microphone is unavailable right now. Check browser site settings, then click Start Answer.";
+    setResponseStatus("Microphone unavailable");
+    if (latestMicErrorDetail) {
+      console.warn("Microphone unavailable detail:", latestMicErrorDetail);
+    }
   } else {
     answerText.innerText = "Microphone permission required. Allow this site to use your mic, then click Start Answer.";
     setResponseStatus("Microphone permission required");
@@ -1531,6 +1698,8 @@ async function beginAnswerCapture() {
   finalAnswer = "";
   latestTranscript = "";
   forceTypedFallback = false;
+  latestMicErrorCode = "";
+  latestMicErrorDetail = "";
   await ensureAudioInputStream();
 
   if (canUseSpeechRecognition() && !preferRecorderMode) {
@@ -1556,7 +1725,7 @@ async function beginAnswerCapture() {
   const micReady = await ensureAudioInputStream();
   if (micReady && startRecorderCapture()) return;
 
-  requestMicActivation({ allowTypedFallback: true });
+  requestMicActivation({ allowTypedFallback: true, reason: latestMicErrorCode });
 }
 
 function stopAnswerCapture({ submit }) {
