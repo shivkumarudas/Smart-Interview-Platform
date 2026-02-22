@@ -12,6 +12,20 @@
 
 <body class="app-theme">
 
+<div class="sidebar">
+  <div class="logo">InterviewAI</div>
+  <div class="menu">
+    <a href="../dashboard/dashboard.html">Dashboard</a>
+    <a href="../profile/profile.html">Profile</a>
+    <a class="active" href="#">Interview Setup</a>
+    <a href="../practice/practice.html">Practice Hub</a>
+    <a href="../report/report.html">Reports</a>
+    <a href="../feedback/feedback.html">Feedback</a>
+    <a href="#" onclick="logout()">Logout</a>
+  </div>
+</div>
+
+<main class="setup-main">
 <div class="setup-container">
 
   <h2>Interview Setup</h2>
@@ -73,9 +87,11 @@
   </form>
 
 </div>
+</main>
 
 <script src="../js/practice-utils.js"></script>
 <script src="js/interview-setup-utils.js"></script>
 <script src="js/interview-setup.js"></script>
+<script src="../js/logout.js"></script>
 </body>
 </html>
