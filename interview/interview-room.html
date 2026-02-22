@@ -13,82 +13,99 @@
 </head>
 
 <body class="app-theme interview-room-body">
-<div class="interview-shell">
-  <header class="call-header">
-    <div class="title-block">
-      <h2>Live Interview Room</h2>
-      <p class="room-subtitle">AI-guided practice with live voice and transcript</p>
-      <p id="liveState" class="live-state">Connecting to interviewer...</p>
-    </div>
-    <div class="session-meta">
-      <span id="progressText" class="meta-pill">Ready</span>
-      <span id="sessionTimer" class="meta-pill timer-pill">00:00</span>
-    </div>
-  </header>
-
-  <main class="call-grid">
-    <section class="panel user-panel">
-      <div class="panel-head">
-        <h3>Candidate</h3>
-        <span class="panel-tag">Live Camera</span>
-      </div>
-      <video id="userVideo" autoplay muted></video>
-      <p class="hint">Camera preview</p>
-    </section>
-    <section class="panel ai-panel">
-      <div class="panel-head">
-        <h3>AI Interviewer</h3>
-        <span class="panel-tag">Gemini Voice</span>
-      </div>
-      <div class="ai-avatar-wrap">
-        <lottie-player
-          id="aiAvatar"
-          src="assets/ai-idle.json"
-          background="transparent"
-          speed="1"
-          loop
-          autoplay>
-        </lottie-player>
-      </div>
-      <div class="ai-text" id="aiText">
-        Hello! I will be your interviewer today.
-      </div>
-    </section>
-  </main>
-
-  <section class="response-panel">
-    <div class="response-head">
-      <p class="label">Your Live Transcript</p>
-      <span id="responseStatus" class="response-status">Waiting for the first question</span>
-    </div>
-    <div id="answerText" class="answer-text">
-      Your answer transcript will appear here while you speak.
-    </div>
-    <div class="coach-tip" id="coachTip"></div>
-    <div class="mic-meter" aria-label="Microphone level">
-      <div id="micLevel" class="mic-level"></div>
-    </div>
-
-    <div id="typedFallback" class="typed-fallback" hidden>
-      <p class="label">Type your answer:</p>
-      <textarea id="typedAnswer" class="typed-answer" rows="3" placeholder="Type your answer here"></textarea>
-      <button id="submitTyped" class="typed-btn" type="button">Submit Answer</button>
-    </div>
-  </section>
-
-  <footer class="action-bar">
-    <button class="primary-btn" id="startAnswerBtn" type="button" disabled>Start Answer</button>
-    <button class="stop-btn" id="stopAnswerBtn" type="button" disabled>Stop Answer</button>
-    <button class="retry-btn" id="retryQuestionBtn" type="button" hidden>Retry Question</button>
-    <button class="end-btn" id="endInterviewBtn" type="button">End Interview</button>
-  </footer>
+<div class="sidebar">
+  <div class="logo">InterviewAI</div>
+  <div class="menu">
+    <a href="../dashboard/dashboard.html">Dashboard</a>
+    <a href="../profile/profile.html">Profile</a>
+    <a href="interview-setup.html">Interview Setup</a>
+    <a class="active" href="#">Live Interview</a>
+    <a href="../practice/practice.html">Practice Hub</a>
+    <a href="../report/report.html">Reports</a>
+    <a href="../feedback/feedback.html">Feedback</a>
+    <a href="#" onclick="logout()">Logout</a>
+  </div>
 </div>
+
+<main class="interview-main">
+  <div class="interview-shell">
+    <header class="call-header">
+      <div class="title-block">
+        <h2>Live Interview Room</h2>
+        <p class="room-subtitle">AI-guided practice with live voice and transcript</p>
+        <p id="liveState" class="live-state">Connecting to interviewer...</p>
+      </div>
+      <div class="session-meta">
+        <span id="progressText" class="meta-pill">Ready</span>
+        <span id="sessionTimer" class="meta-pill timer-pill">00:00</span>
+      </div>
+    </header>
+
+    <main class="call-grid">
+      <section class="panel user-panel">
+        <div class="panel-head">
+          <h3>Candidate</h3>
+          <span class="panel-tag">Live Camera</span>
+        </div>
+        <video id="userVideo" autoplay muted></video>
+        <p class="hint">Camera preview</p>
+      </section>
+      <section class="panel ai-panel">
+        <div class="panel-head">
+          <h3>AI Interviewer</h3>
+          <span class="panel-tag">Gemini Voice</span>
+        </div>
+        <div class="ai-avatar-wrap">
+          <lottie-player
+            id="aiAvatar"
+            src="assets/ai-idle.json"
+            background="transparent"
+            speed="1"
+            loop
+            autoplay>
+          </lottie-player>
+        </div>
+        <div class="ai-text" id="aiText">
+          Hello! I will be your interviewer today.
+        </div>
+      </section>
+    </main>
+
+    <section class="response-panel">
+      <div class="response-head">
+        <p class="label">Your Live Transcript</p>
+        <span id="responseStatus" class="response-status">Waiting for the first question</span>
+      </div>
+      <div id="answerText" class="answer-text">
+        Your answer transcript will appear here while you speak.
+      </div>
+      <div class="coach-tip" id="coachTip"></div>
+      <div class="mic-meter" aria-label="Microphone level">
+        <div id="micLevel" class="mic-level"></div>
+      </div>
+
+      <div id="typedFallback" class="typed-fallback" hidden>
+        <p class="label">Type your answer:</p>
+        <textarea id="typedAnswer" class="typed-answer" rows="3" placeholder="Type your answer here"></textarea>
+        <button id="submitTyped" class="typed-btn" type="button">Submit Answer</button>
+      </div>
+    </section>
+
+    <footer class="action-bar">
+      <button class="primary-btn" id="startAnswerBtn" type="button" disabled>Start Answer</button>
+      <button class="stop-btn" id="stopAnswerBtn" type="button" disabled>Stop Answer</button>
+      <button class="retry-btn" id="retryQuestionBtn" type="button" hidden>Retry Question</button>
+      <button class="end-btn" id="endInterviewBtn" type="button">End Interview</button>
+    </footer>
+  </div>
+</main>
 
 <!-- hidden canvas for future emotion detection -->
 <canvas id="faceCanvas" width="300" height="200" style="display:none;"></canvas>
 
 <script src="../js/api.js"></script>
 <script src="../js/practice-utils.js"></script>
+<script src="../js/logout.js"></script>
 <script src="js/interview-room.js"></script>
 </body>
 </html>
