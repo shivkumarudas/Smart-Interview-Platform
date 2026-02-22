@@ -16,8 +16,8 @@
   <div class="logo">InterviewAI</div>
   <div class="menu">
     <a href="../dashboard/dashboard.html">Dashboard</a>
-    <a href="#" class="active">User Profile</a>
-    <a href="../interview/interview-setup.html">Start Interview</a>
+    <a href="#" class="active">Profile</a>
+    <a href="../interview/interview-setup.html">Interview Setup</a>
     <a href="../practice/practice.html">Practice Hub</a>
     <a href="../report/report.html">Reports</a>
     <a href="../feedback/feedback.html">Feedback</a>
@@ -25,121 +25,132 @@
   </div>
 </div>
 
-<form id="profileForm">
-  <div class="form-group">
-    <label>Full Name *</label>
-    <input type="text" id="name" required>
-  </div>
+<main class="main">
+  <header class="header">
+    <h2>User Profile</h2>
+    <p>Keep your details up to date to get better role-specific interview prompts and feedback.</p>
+  </header>
 
-  <div class="form-group">
-    <label>Email *</label>
-    <input type="email" id="email" required>
-  </div>
+  <form id="profileForm">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="name">Full Name *</label>
+        <input type="text" id="name" required>
+      </div>
 
-  <div class="form-group">
-    <label>Phone Number *</label>
-    <input type="tel" id="phone" placeholder="+91XXXXXXXXXX" required>
-  </div>
+      <div class="form-group">
+        <label for="email">Email *</label>
+        <input type="email" id="email" required>
+      </div>
 
-  <div class="form-group">
-    <label>Location *</label>
-    <input type="text" id="location" placeholder="City, State" required>
-  </div>
+      <div class="form-group">
+        <label for="phone">Phone Number *</label>
+        <input type="tel" id="phone" placeholder="+1XXXXXXXXXX" required>
+      </div>
 
-  <div class="form-group">
-    <label>Highest Qualification *</label>
-    <select id="education" required>
-      <option value="">Select</option>
-      <option>B.Tech</option>
-      <option>B.E</option>
-      <option>M.Tech</option>
-      <option>MCA</option>
-      <option>BCA</option>
-      <option>Other</option>
-    </select>
-  </div>
+      <div class="form-group">
+        <label for="location">Location *</label>
+        <input type="text" id="location" placeholder="City, State" required>
+      </div>
 
-  <div class="form-group">
-    <label>Total Experience (Years) *</label>
-    <input type="number" id="experienceYears" min="0" max="40" required>
-  </div>
+      <div class="form-group">
+        <label for="education">Highest Qualification *</label>
+        <select id="education" required>
+          <option value="">Select</option>
+          <option>B.Tech</option>
+          <option>B.E</option>
+          <option>M.Tech</option>
+          <option>MCA</option>
+          <option>BCA</option>
+          <option>Other</option>
+        </select>
+      </div>
 
-  <div class="form-group">
-    <label>Experience Level *</label>
-    <select id="experience" required>
-      <option value="">Select</option>
-      <option>Fresher</option>
-      <option>0-1 Years</option>
-      <option>1-3 Years</option>
-      <option>3+ Years</option>
-    </select>
-  </div>
+      <div class="form-group">
+        <label for="experienceYears">Total Experience (Years) *</label>
+        <input type="number" id="experienceYears" min="0" max="40" required>
+      </div>
 
-  <div class="form-group">
-    <label>Target Role *</label>
-    <select id="role" required>
-      <option value="">Select</option>
-      <option>Frontend Developer</option>
-      <option>Backend Developer</option>
-      <option>Full Stack Developer</option>
-      <option>Data Scientist</option>
-      <option>ML Engineer</option>
-    </select>
-  </div>
+      <div class="form-group">
+        <label for="experience">Experience Level *</label>
+        <select id="experience" required>
+          <option value="">Select</option>
+          <option>Fresher</option>
+          <option>0-1 Years</option>
+          <option>1-3 Years</option>
+          <option>3+ Years</option>
+        </select>
+      </div>
 
-  <div class="form-group">
-    <label>Key Skills (comma separated) *</label>
-    <input type="text" id="skills" placeholder="HTML, CSS, JavaScript, React" required>
-  </div>
+      <div class="form-group">
+        <label for="role">Target Role *</label>
+        <select id="role" required>
+          <option value="">Select</option>
+          <option>Frontend Developer</option>
+          <option>Backend Developer</option>
+          <option>Full Stack Developer</option>
+          <option>Data Scientist</option>
+          <option>ML Engineer</option>
+        </select>
+      </div>
 
-  <div class="form-group">
-    <label>LinkedIn Profile URL *</label>
-    <input type="url" id="linkedin" placeholder="https://linkedin.com/in/username" required>
-  </div>
+      <div class="form-group full-width">
+        <label for="skills">Key Skills (comma separated) *</label>
+        <input type="text" id="skills" placeholder="HTML, CSS, JavaScript, React" required>
+      </div>
 
-  <div class="form-group">
-    <label>GitHub / Portfolio URL</label>
-    <input type="url" id="portfolio" placeholder="https://github.com/username">
-  </div>
+      <div class="form-group">
+        <label for="linkedin">LinkedIn Profile URL *</label>
+        <input type="url" id="linkedin" placeholder="https://linkedin.com/in/username" required>
+      </div>
 
-  <div class="form-group">
-    <label>Preferred Interview Type *</label>
-    <select id="interviewType" required>
-      <option value="">Select</option>
-      <option>Technical</option>
-      <option>HR</option>
-      <option>Behavioral</option>
-      <option>Mixed</option>
-    </select>
-  </div>
+      <div class="form-group">
+        <label for="portfolio">GitHub / Portfolio URL</label>
+        <input type="url" id="portfolio" placeholder="https://github.com/username">
+      </div>
 
-  <div class="form-group">
-    <label>Availability *</label>
-    <select id="availability" required>
-      <option value="">Select</option>
-      <option>Weekdays</option>
-      <option>Weekends</option>
-      <option>Anytime</option>
-    </select>
-  </div>
+      <div class="form-group">
+        <label for="interviewType">Preferred Interview Type *</label>
+        <select id="interviewType" required>
+          <option value="">Select</option>
+          <option>Technical</option>
+          <option>HR</option>
+          <option>Behavioral</option>
+          <option>Mixed</option>
+        </select>
+      </div>
 
-  <div class="form-group">
-    <label>Preferred Language *</label>
-    <select id="language" required>
-      <option value="">Select</option>
-      <option>English</option>
-      <option>Hindi</option>
-      <option>English + Hindi</option>
-    </select>
-  </div>
+      <div class="form-group">
+        <label for="availability">Availability *</label>
+        <select id="availability" required>
+          <option value="">Select</option>
+          <option>Weekdays</option>
+          <option>Weekends</option>
+          <option>Anytime</option>
+        </select>
+      </div>
 
-  <button class="save-btn" id="saveBtn" type="submit">Save Profile</button>
-  <button class="save-btn" id="editBtn" type="button" style="display:none;">Edit Profile</button>
+      <div class="form-group">
+        <label for="language">Preferred Language *</label>
+        <select id="language" required>
+          <option value="">Select</option>
+          <option>English</option>
+          <option>Hindi</option>
+          <option>English + Hindi</option>
+        </select>
+      </div>
+    </div>
 
-  <div class="status" id="statusMsg" style="display:none;">
-    Profile Completed
-  </div>
-</form>
+    <div class="action-row">
+      <button class="save-btn" id="saveBtn" type="submit">Save Profile</button>
+      <button class="save-btn" id="editBtn" type="button" style="display:none;">Edit Profile</button>
+    </div>
+
+    <div class="status" id="statusMsg" style="display:none;">
+      Profile completed
+    </div>
+  </form>
+</main>
 
 <script src="../js/api.js"></script>
 <script src="js/profile.js"></script>
