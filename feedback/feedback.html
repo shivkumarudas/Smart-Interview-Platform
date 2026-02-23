@@ -17,9 +17,9 @@
     <div class="menu">
       <a href="../dashboard/dashboard.html">Dashboard</a>
       <a href="../profile/profile.html">Profile</a>
-      <a href="../interview/interview-setup.html">Interview</a>
+      <a href="../interview/interview-setup.html">Interview Setup</a>
       <a href="../practice/practice.html">Practice Hub</a>
-      <a href="../report/report.html">Report</a>
+      <a href="../report/report.html">Reports</a>
       <a class="active" href="#">Feedback</a>
       <a href="#" onclick="logout()">Logout</a>
     </div>
@@ -29,6 +29,7 @@
 
     <div class="header">
       <h2>Interview Feedback</h2>
+      <p>Share what worked and what needs improvement so we can make InterviewAI better.</p>
     </div>
 
     <div class="content">
@@ -37,13 +38,13 @@
         <p>Help us improve the AI interview experience.</p>
 
         <form id="feedbackForm">
-          <label>What did you like?</label>
+          <label for="positive">What did you like?</label>
           <textarea id="positive" placeholder="AI questions, feedback, UI..." required></textarea>
 
-          <label>What can be improved?</label>
+          <label for="improvement">What can be improved?</label>
           <textarea id="improvement" placeholder="Accuracy, speed, UI..." required></textarea>
 
-          <label>Would you recommend this platform?</label>
+          <label for="recommend">Would you recommend this platform?</label>
           <select id="recommend" required>
             <option value="">Select</option>
             <option>Yes</option>
