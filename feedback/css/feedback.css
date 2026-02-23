@@ -1,118 +1,206 @@
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Plus Jakarta Sans", sans-serif;
 }
 
 body {
-    display: flex;
-    background: #f4f7fb;
+  min-height: 100vh;
+  display: flex;
+  background: #f4f7fb;
+  color: #17334d;
 }
 
-/* SIDEBAR */
 .sidebar {
-    width: 260px;
-    height: 100vh;
-    background: linear-gradient(180deg, #0f2a4d, #143c6e);
-    color: #fff;
-    padding: 30px 20px;
+  width: 260px;
+  min-height: 100vh;
+  padding: 28px 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 .logo {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 40px;
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin-bottom: 34px;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .menu a {
-    display: block;
-    padding: 14px 12px;
-    margin-bottom: 10px;
-    border-radius: 8px;
-    color: #fff;
-    text-decoration: none;
+  display: block;
+  padding: 12px 14px;
+  border-radius: 10px;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
 }
 
-.menu a.active,
-.menu a:hover {
-    background: rgba(255,255,255,0.15);
-}
-
-/* MAIN */
 .main {
-    flex: 1;
+  margin-left: 260px;
+  width: calc(100% - 260px);
+  padding: 22px 34px 34px;
+  display: grid;
+  gap: 16px;
 }
 
 .header {
-    padding: 25px 40px;
-    background: #fff;
-    border-bottom: 1px solid #e5e8ef;
+  border-radius: 16px;
+  padding: 18px 22px;
+  border: 1px solid #d5e1ec;
+  background: linear-gradient(155deg, #ffffff, #edf4fb);
+  box-shadow: 0 12px 28px rgba(16, 39, 66, 0.09);
+}
+
+.header h2 {
+  font-size: clamp(1.2rem, 2.2vw, 1.6rem);
+}
+
+.header p {
+  margin-top: 6px;
+  color: #5d748b;
+  font-size: 0.9rem;
 }
 
 .content {
-    padding: 40px;
+  display: grid;
 }
 
 .card {
-    background: #fff;
-    padding: 35px;
-    border-radius: 16px;
-    max-width: 650px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  max-width: 760px;
+  border: 1px solid #d5e1ec;
+  border-radius: 16px;
+  padding: 24px;
+  background: linear-gradient(155deg, #ffffff, #edf4fb);
+  box-shadow: 0 14px 30px rgba(16, 39, 66, 0.09);
 }
 
 .card h3 {
-    margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .card p {
-    margin-bottom: 25px;
-    color: #555;
+  margin-bottom: 18px;
+  color: #5b738a;
 }
 
 label {
-    display: block;
-    margin-top: 15px;
-    margin-bottom: 6px;
-    font-weight: 500;
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #28435d;
 }
 
-.rating input {
-    margin-right: 10px;
-}
-
-textarea, select {
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
+textarea,
+select {
+  width: 100%;
+  border: 1px solid #c4d5e5;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #142f49;
+  padding: 11px 12px;
+  margin-bottom: 12px;
+  font-size: 0.92rem;
+  outline: none;
 }
 
 textarea {
-    resize: vertical;
-    min-height: 80px;
+  resize: vertical;
+  min-height: 92px;
+}
+
+textarea:focus,
+select:focus {
+  border-color: #7db1d4;
+  box-shadow: 0 0 0 3px rgba(36, 120, 170, 0.14);
 }
 
 button {
-    margin-top: 20px;
-    padding: 14px;
-    width: 100%;
-    border: none;
-    border-radius: 10px;
-    background: #1f6ae1;
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
+  margin-top: 4px;
+  width: 100%;
+  border: none;
+  border-radius: 11px;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(120deg, #0f7f72, #119985);
+  color: #ffffff;
 }
 
 button:hover {
-    background: #1557c0;
+  filter: brightness(0.96);
 }
 
 .success {
-    display: none;
-    margin-top: 20px;
-    color: #2ecc71;
-    font-weight: 600;
+  margin-top: 14px;
+  color: #1f8b62;
+  font-weight: 700;
+}
+
+@media (max-width: 1060px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .main {
+    margin-left: 220px;
+    width: calc(100% - 220px);
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+}
+
+@media (max-width: 860px) {
+  body {
+    display: block;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    position: relative;
+    padding: 16px 14px;
+  }
+
+  .logo {
+    margin-bottom: 16px;
+  }
+
+  .menu {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .menu a {
+    padding: 10px;
+    text-align: center;
+    font-size: 0.84rem;
+  }
+
+  .main {
+    margin-left: 0;
+    width: 100%;
+    padding: 14px;
+  }
+}
+
+@media (max-width: 560px) {
+  .menu {
+    grid-template-columns: 1fr;
+  }
+
+  .header,
+  .card {
+    border-radius: 12px;
+    padding: 14px;
+  }
 }
