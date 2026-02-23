@@ -2,7 +2,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: "Inter", sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
 }
 
 :root {
@@ -36,9 +36,15 @@ body {
 }
 
 .logo {
-  font-size: 24px;
+  font-size: 1.55rem;
   font-weight: 700;
-  margin-bottom: 40px;
+  margin-bottom: 34px;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .menu a {
@@ -46,8 +52,8 @@ body {
   text-decoration: none;
   color: #fff;
   padding: 13px 14px;
-  border-radius: 8px;
-  margin-bottom: 10px;
+  border-radius: 10px;
+  font-weight: 600;
 }
 
 .menu a:hover,
@@ -365,13 +371,38 @@ body {
 }
 
 @media (max-width: 920px) {
+  body {
+    display: block;
+  }
+
   .sidebar {
-    display: none;
+    width: 100%;
+    min-height: auto;
+    height: auto;
+    position: relative;
+    padding: 16px 14px;
+  }
+
+  .logo {
+    margin-bottom: 16px;
+  }
+
+  .menu {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .menu a {
+    padding: 10px;
+    text-align: center;
+    font-size: 0.84rem;
   }
 
   .main {
     margin-left: 0;
     width: 100%;
+    padding: 16px;
   }
 
   .header {
@@ -386,5 +417,42 @@ body {
   .header-actions .btn {
     width: 100%;
     text-align: center;
+  }
+}
+
+@media (max-width: 620px) {
+  .menu {
+    grid-template-columns: 1fr;
+  }
+
+  .main {
+    padding: 12px;
+  }
+
+  .header,
+  .card {
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .header h1 {
+    font-size: 1.45rem;
+  }
+
+  .quick-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .template-actions {
+    flex-direction: column;
+  }
+
+  .template-actions .btn {
+    width: 100%;
+  }
+
+  .activity-item {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
