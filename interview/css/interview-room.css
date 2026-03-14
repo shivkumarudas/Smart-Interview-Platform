@@ -109,6 +109,7 @@
 .call-header,
 .panel,
 .response-panel,
+.ease-panel,
 .action-bar {
   border: 1px solid var(--room-border);
   border-radius: 18px;
@@ -322,6 +323,21 @@
 .response-panel {
   padding: 14px;
   animation: riseIn 560ms ease both;
+}
+
+.ease-panel {
+  padding: 10px 14px;
+  border-style: dashed;
+  border-color: #bfd3e6;
+  background: linear-gradient(120deg, rgba(241, 248, 255, 0.96), rgba(250, 253, 255, 0.96));
+  animation: riseIn 590ms ease both;
+}
+
+.next-action {
+  margin-top: 4px;
+  color: #294f6b;
+  font-size: 0.9rem;
+  line-height: 1.48;
 }
 
 .response-head {
@@ -627,6 +643,7 @@
   .call-header,
   .panel,
   .response-panel,
+  .ease-panel,
   .action-bar {
     border-radius: 14px;
   }
@@ -665,6 +682,7 @@
   .call-header,
   .panel,
   .response-panel,
+  .ease-panel,
   .action-bar,
   .ai-avatar-wrap,
   .action-bar button,
