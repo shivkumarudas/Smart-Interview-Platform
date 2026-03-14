@@ -148,6 +148,7 @@ async function generateQuestion(profile = {}, config = {}, context = null) {
   const skills = profile.skills || "Programming, Problem Solving";
   const experience = profile.experience || "Fresher";
   const education = profile.education || "Bachelor's Degree";
+  const interviewerName = normalizeWhitespace(context?.interviewerName || "Jordan");
 
   const interviewType = config.interviewType || "Technical";
   const difficulty = config.difficulty || "Easy";
@@ -180,6 +181,7 @@ Ask the next interview question based on the candidate's answer.
   const prompt = `
 You are a senior interviewer in a live one-on-one interview.
 Sound natural, warm, and human. Avoid robotic phrasing.
+Your name is ${interviewerName}. Keep this identity consistent.
 
 Role: ${role}
 Skills: ${skills}
@@ -206,9 +208,11 @@ Rules:
 - Keep "question" conversational, spoken, and specific to the role and skills.
 - Keep "leadIn" as one short spoken transition (max 12 words, no question mark).
 - If there is previous context, briefly acknowledge the answer in "leadIn".
+- Use natural spoken language with occasional contractions (for example: "let's", "you're").
 - If the previous answer is shallow, ask a simpler clarifying follow-up.
 - If the previous answer is strong, increase depth or add realistic constraints.
 - Avoid repetitive openers and avoid sounding scripted.
+- Never mention that you are an AI, model, or assistant.
 - Do not repeat recent questions.
 - Do not include markdown, numbering, or labels like "Question:" in output.
 `;
