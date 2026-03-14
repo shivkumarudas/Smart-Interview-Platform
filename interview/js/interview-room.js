@@ -1023,6 +1023,72 @@ let isAnswerWindowOpen = false;
 let currentSessionId = null;
 currentSessionId = localStorage.getItem("currentInterviewSessionId") || null;
 
+function normalizeInterviewerText(text, maxLen = 320) {
+  let value = String(text || "").replace(/\s+/g, " ").trim();
+  if (!value) return "";
+
+  value = value.replace(/^["'`]+|["'`]+$/g, "");
+  if (value.length > maxLen) {
+    value = `${value.slice(0, maxLen - 3).trim()}...`;
+  }
+
+  return value;
+}
+
+function ensureQuestionText(text) {
+  let value = normalizeInterviewerText(text, 300);
+  if (!value) return "";
+
+  if (!value.endsWith("?")) {
+    value = `${value.replace(/[.!]+$/g, "").trim()}?`;
+  }
+
+  return value;
+}
+
+function normalizeLeadInText(text) {
+  let value = normalizeInterviewerText(text, 120);
+  if (!value) return "";
+
+  value = value.replace(/[!?]+$/g, "").replace(/[.]+$/g, "").trim();
+  return value;
+}
+
+function buildFallbackLeadIn(questionIndex) {
+  if (questionIndex <= 1) return "Let's start with this";
+
+  const variants = [
+    "Thanks for that context",
+    "Good, let's go one level deeper",
+    "Great, let's move to the next scenario"
+  ];
+
+  return variants[(questionIndex - 2) % variants.length];
+}
+
+function buildSpokenQuestionText({ question, questionJson, spokenQuestion, questionIndex }) {
+  const apiSpoken = normalizeInterviewerText(spokenQuestion, 420);
+  if (apiSpoken) return apiSpoken;
+
+  const baseQuestion = ensureQuestionText(question);
+  if (!baseQuestion) return "";
+
+  const explicitLeadIn = normalizeLeadInText(
+    questionJson?.leadIn || questionJson?.interviewerLeadIn || ""
+  );
+  const leadIn = explicitLeadIn || buildFallbackLeadIn(questionIndex);
+
+  return `${leadIn}. ${baseQuestion}`;
+}
+
+function buildInterviewIntro(candidateName, difficulty, interviewType) {
+  const safeName = normalizeInterviewerText(candidateName, 48) || "there";
+  const safeDifficulty = normalizeInterviewerText(difficulty, 24).toLowerCase() || "standard";
+  const safeType = normalizeInterviewerText(interviewType, 32).toLowerCase() || "technical";
+
+  return `Hi ${safeName}, welcome. I'm your interviewer today. We'll run a ${safeDifficulty} ${safeType} interview. Let's begin.`;
+}
+
 function computeMaxQuestions(durationMinutesRaw) {
   const minutes = Number(durationMinutesRaw);
   if (!Number.isFinite(minutes) || minutes <= 0) return 5;
@@ -1358,7 +1424,7 @@ async function startInterview() {
   const candidateName = (candidateProfile?.name || user.name || "Candidate").trim();
   const interviewType = String(interviewConfig.interviewType || "technical").toLowerCase();
   const difficulty = String(interviewConfig.difficulty || "standard").toLowerCase();
-  const intro = `Hello Welcome to your ${difficulty} ${interviewType} interview.`;
+  const intro = buildInterviewIntro(candidateName, difficulty, interviewType);
 
   aiText.innerText = intro;
   setResponseStatus("Interviewer introduction");
@@ -1440,8 +1506,15 @@ async function askAIQuestion({ manualRetry = false } = {}) {
 
     if (typedAnswerEl) typedAnswerEl.value = "";
 
-    aiText.innerText = currentQuestion;
-    speak(currentQuestion, () => {
+    const spokenQuestion = buildSpokenQuestionText({
+      question: currentQuestion,
+      questionJson: currentQuestionJson,
+      spokenQuestion: data.spokenQuestion,
+      questionIndex: questionCount
+    }) || currentQuestion;
+
+    aiText.innerText = spokenQuestion;
+    speak(spokenQuestion, () => {
       if (canCaptureVoice()) forceTypedFallback = false;
       isAnswerWindowOpen = true;
       answerText.innerText = "Type your answer below or click Start Answer to respond with voice.";
