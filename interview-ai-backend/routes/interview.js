@@ -101,6 +101,42 @@ function parseBase64Audio(audioBase64) {
   }
 }
 
+function normalizeSpokenText(text, maxLen = 300) {
+  let value = String(text || "").replace(/\s+/g, " ").trim();
+  if (!value) return "";
+
+  value = value.replace(/^["'`]+|["'`]+$/g, "");
+  if (value.length > maxLen) {
+    value = `${value.slice(0, maxLen - 3).trim()}...`;
+  }
+
+  return value.trim();
+}
+
+function ensureQuestionSentence(text) {
+  let value = normalizeSpokenText(text, 300);
+  if (!value) return "";
+
+  if (!value.endsWith("?")) {
+    value = `${value.replace(/[.!]+$/g, "").trim()}?`;
+  }
+
+  return value;
+}
+
+function buildSpokenQuestion(questionText, questionJson) {
+  const question = ensureQuestionSentence(questionText);
+  if (!question) return "";
+
+  const leadInRaw = normalizeSpokenText(questionJson?.leadIn || "", 120);
+  if (!leadInRaw) return question;
+
+  const leadIn = leadInRaw.replace(/[!?]+$/g, "").replace(/[.]+$/g, "").trim();
+  if (!leadIn) return question;
+
+  return `${leadIn}. ${question}`;
+}
+
 async function requireSessionOwnership(req, res, next) {
   const { sessionId } = req.params;
   if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
