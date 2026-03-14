@@ -367,20 +367,22 @@ router.post("/question", requireAuth, questionLimiter, async (req, res) => {
       questionResult?.json && typeof questionResult.json === "object"
         ? questionResult.json
         : null;
+    const spokenQuestion = buildSpokenQuestion(questionText, questionJson);
 
     const type = String(configInput?.interviewType || "").trim().toLowerCase();
     const coachTip =
       type === "behavioral"
-        ? "Tip: Answer using STAR (Situation, Task, Action, Result). Be specific and time-box to 60–90 seconds."
+        ? "Tip: Answer using STAR (Situation, Task, Action, Result). Be specific and time-box to 60-90 seconds."
         : type === "hr"
           ? "Tip: Be concise, honest, and tie your answer to the role. Mention impact and what you learned."
           : type === "mixed"
-            ? "Tip: Structure your answer (context → approach → impact). If technical, think aloud and cover tradeoffs."
-            : "Tip: Think aloud (approach → tradeoffs → edge cases → complexity). Use a small example when possible.";
+            ? "Tip: Structure your answer (context -> approach -> impact). If technical, think aloud and cover tradeoffs."
+            : "Tip: Think aloud (approach -> tradeoffs -> edge cases -> complexity). Use a small example when possible.";
 
     res.json({
       success: true,
       question: questionText,
+      spokenQuestion,
       questionJson,
       coachTip
     });
@@ -640,3 +642,4 @@ router.post("/tts", requireAuth, ttsLimiter, async (req, res) => {
 });
 
 module.exports = router;
+
