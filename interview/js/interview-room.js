@@ -17,6 +17,7 @@ const progressText = document.getElementById("progressText");
 const sessionTimerEl = document.getElementById("sessionTimer");
 const liveStateEl = document.getElementById("liveState");
 const responseStatusEl = document.getElementById("responseStatus");
+const nextActionHintEl = document.getElementById("nextActionHint");
 const startAnswerBtn = document.getElementById("startAnswerBtn");
 const stopAnswerBtn = document.getElementById("stopAnswerBtn");
 const typedAnswerEl = document.getElementById("typedAnswer");
@@ -25,6 +26,7 @@ const submitTypedBtn = document.getElementById("submitTyped");
 const micLevelEl = document.getElementById("micLevel");
 const endInterviewBtn = document.getElementById("endInterviewBtn");
 const retryQuestionBtn = document.getElementById("retryQuestionBtn");
+const interviewerPanelTitleEl = document.getElementById("interviewerPanelTitle");
 
 const PENDING_ENTRY_QUEUE_KEY = "INTERVIEWAI_PENDING_SESSION_ENTRIES";
 const PENDING_SESSION_END_QUEUE_KEY = "INTERVIEWAI_PENDING_SESSION_ENDS";
@@ -58,6 +60,154 @@ function withTimeout(promise, timeoutMs, message) {
         reject(error);
       });
   });
+}
+
+function normalizeIdentityText(value, maxLen = 42) {
+  return String(value || "")
+    .replace(/[^\w\s'-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
+}
+
+function deterministicHash(text) {
+  const input = String(text || "");
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function pickInterviewerName(seed) {
+  const index = deterministicHash(seed) % INTERVIEWER_NAME_POOL.length;
+  return INTERVIEWER_NAME_POOL[index] || "Maya";
+}
+
+function setInterviewerIdentity(name) {
+  const safeName = normalizeIdentityText(name, 24) || "Maya";
+  interviewerName = safeName;
+
+  if (interviewerPanelTitleEl) {
+    interviewerPanelTitleEl.innerText = `${interviewerName} (Interviewer)`;
+  }
+}
+
+function setNextActionHint(text) {
+  if (!nextActionHintEl) return;
+  const safeText = String(text || "").trim();
+  if (!safeText) return;
+  nextActionHintEl.innerText = safeText;
+}
+
+const FRIENDLY_STATUS_MAP = {
+  "Waiting for the first question": "Getting your first question ready",
+  "Interviewer introduction": "Starting the interview",
+  "Interviewer is preparing a question": "Preparing your next question",
+  "Your turn to answer": "Your turn",
+  "Submitting typed answer": "Submitting your typed response",
+  "Question retry failed": "Couldn't load that question",
+  "Unable to load question": "Unable to load the next question",
+  "Switching recorder mode": "Switching to voice recorder mode",
+  "Answer capture paused": "Answer paused",
+  "No response captured": "No clear response captured",
+  "Submitting your answer": "Submitting your response",
+  "No speech detected": "No speech detected",
+  "Microphone unavailable": "Microphone unavailable",
+  "Camera unavailable. Microphone is active.": "Camera unavailable (voice mode active)",
+  "Transcribing response": "Converting your voice to text",
+  "Voice transcription failed": "Couldn't transcribe your voice",
+  "Recording failed": "Recording failed",
+  "Recording your answer": "Listening to your answer",
+  "Typed input mode": "Typing mode enabled",
+  "Insecure context for microphone": "Microphone needs HTTPS or localhost",
+  "Microphone busy": "Microphone is busy",
+  "No microphone detected": "No microphone detected",
+  "Microphone settings error": "Microphone setup issue",
+  "Speech service unavailable": "Speech service is unavailable",
+  "Speech language unsupported": "Speech language unsupported",
+  "Microphone startup interrupted": "Microphone startup interrupted",
+  "Microphone permission required": "Microphone permission required",
+  "Processing your answer": "Processing your response",
+  "Moving to next question": "Moving to the next question",
+  "AI is evaluating your answer": "Reviewing your response",
+  "Answer saved": "Response saved",
+  "Answer saved (evaluation delayed)": "Response saved (feedback pending)",
+  "Interview complete": "Interview complete",
+  "Finalizing interview...": "Finalizing your report",
+  "Interview complete (sync pending)": "Interview saved locally (sync pending)",
+  "Unable to start interview": "Unable to start interview"
+};
+
+function getFriendlyStatus(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+  return FRIENDLY_STATUS_MAP[raw] || raw;
+}
+
+function updateNextActionFromStatus(text) {
+  const status = String(text || "").toLowerCase();
+
+  if (!status) return;
+
+  if (status.includes("your turn")) {
+    setNextActionHint("Click Answer by Voice, speak naturally for 45-90 seconds, then click Finish Answer.");
+    return;
+  }
+
+  if (status.includes("listening")) {
+    setNextActionHint("Speak clearly at a normal pace. Pause briefly when you are done.");
+    return;
+  }
+
+  if (status.includes("typed response") || status.includes("typing mode")) {
+    setNextActionHint("Type your response in one clear paragraph, then click Submit Answer.");
+    return;
+  }
+
+  if (status.includes("preparing") || status.includes("starting the interview")) {
+    setNextActionHint("Listen to the interviewer and focus on one question at a time.");
+    return;
+  }
+
+  if (status.includes("first question")) {
+    setNextActionHint("Your interviewer is about to begin. Listen carefully to the first question.");
+    return;
+  }
+
+  if (status.includes("submitting") || status.includes("reviewing") || status.includes("processing")) {
+    setNextActionHint("Hold on for a moment. Your response is being processed.");
+    return;
+  }
+
+  if (status.includes("no speech") || status.includes("microphone") || status.includes("transcribe")) {
+    setNextActionHint("If voice is unstable, use the typing box so you can keep the interview moving.");
+    return;
+  }
+
+  if (status.includes("camera unavailable")) {
+    setNextActionHint("Camera is optional. You can continue using voice or typed answers.");
+    return;
+  }
+
+  if (status.includes("unable to load") || status.includes("couldn't load")) {
+    setNextActionHint("Use Retry Question. If needed, refresh once and continue your session.");
+    return;
+  }
+
+  if (status.includes("unable to start interview")) {
+    setNextActionHint("Check your connection, then click Retry Start to continue.");
+    return;
+  }
+
+  if (status.includes("moving to the next question")) {
+    setNextActionHint("Get ready for the next question. Keep your answers concise and concrete.");
+    return;
+  }
+
+  if (status.includes("interview complete") || status.includes("finalizing")) {
+    setNextActionHint("Interview is ending. Your report is being prepared.");
+  }
 }
 
 /* ================= CAMERA ================= */
@@ -117,6 +267,17 @@ const MALE_BROWSER_VOICE_HINTS = [
   "fred",
   "alex"
 ];
+const INTERVIEWER_NAME_POOL = [
+  "Maya",
+  "Jordan",
+  "Ananya",
+  "Arjun",
+  "Nina",
+  "Riya",
+  "Aarav",
+  "Elena"
+];
+let interviewerName = "Maya";
 
 function getLiveAudioTrack(stream) {
   if (!stream || typeof stream.getAudioTracks !== "function") return null;
@@ -401,16 +562,16 @@ function setAIState(state) {
   if (!liveStateEl) return;
 
   if (state === "thinking") {
-    liveStateEl.innerText = "Interviewer is preparing the next question";
+    liveStateEl.innerText = `${interviewerName} is preparing the next question`;
     return;
   }
 
   if (state === "speaking") {
-    liveStateEl.innerText = "Interviewer speaking";
+    liveStateEl.innerText = `${interviewerName} is speaking`;
     return;
   }
 
-  liveStateEl.innerText = "Your turn to answer";
+  liveStateEl.innerText = `Your turn to answer`;
 }
 
 /* ================= AUDIO METER ================= */
@@ -490,7 +651,9 @@ async function ensureAudioContextRunning() {
 }
 
 function setResponseStatus(text) {
-  if (responseStatusEl) responseStatusEl.innerText = text;
+  const friendlyStatus = getFriendlyStatus(text);
+  if (responseStatusEl) responseStatusEl.innerText = friendlyStatus;
+  updateNextActionFromStatus(friendlyStatus);
 }
 
 let interviewStartedAtMs = 0;
@@ -1081,12 +1244,13 @@ function buildSpokenQuestionText({ question, questionJson, spokenQuestion, quest
   return `${leadIn}. ${baseQuestion}`;
 }
 
-function buildInterviewIntro(candidateName, difficulty, interviewType) {
+function buildInterviewIntro(candidateName, difficulty, interviewType, interviewerIdentity) {
   const safeName = normalizeInterviewerText(candidateName, 48) || "there";
   const safeDifficulty = normalizeInterviewerText(difficulty, 24).toLowerCase() || "standard";
   const safeType = normalizeInterviewerText(interviewType, 32).toLowerCase() || "technical";
+  const safeInterviewer = normalizeInterviewerText(interviewerIdentity, 24) || "Maya";
 
-  return `Hi ${safeName}, welcome. I'm your interviewer today. We'll run a ${safeDifficulty} ${safeType} interview. Let's begin.`;
+  return `Hi ${safeName}, welcome. I'm ${safeInterviewer}, and I'll be your interviewer today. We'll run a ${safeDifficulty} ${safeType} interview. Let's begin.`;
 }
 
 function computeMaxQuestions(durationMinutesRaw) {
@@ -1096,6 +1260,7 @@ function computeMaxQuestions(durationMinutesRaw) {
 }
 
 maxQuestions = computeMaxQuestions(interviewConfig.duration);
+setInterviewerIdentity(pickInterviewerName(user?.id || "default"));
 
 function updateProgress() {
   if (!progressText) return;
@@ -1412,6 +1577,14 @@ async function startInterview() {
   setRetryQuestionVisibility(false);
 
   candidateProfile = await loadCandidateProfile();
+  const personaSeed = [
+    user?.id || "",
+    candidateProfile?.role || "",
+    interviewConfig?.interviewType || "",
+    interviewConfig?.difficulty || ""
+  ].join("|");
+  setInterviewerIdentity(pickInterviewerName(personaSeed));
+
   candidateSpeechLocale = getSpeechLocaleFromProfileLanguage(candidateProfile?.language);
   if (recognition) {
     recognition.lang = candidateSpeechLocale;
@@ -1424,7 +1597,7 @@ async function startInterview() {
   const candidateName = (candidateProfile?.name || user.name || "Candidate").trim();
   const interviewType = String(interviewConfig.interviewType || "technical").toLowerCase();
   const difficulty = String(interviewConfig.difficulty || "standard").toLowerCase();
-  const intro = buildInterviewIntro(candidateName, difficulty, interviewType);
+  const intro = buildInterviewIntro(candidateName, difficulty, interviewType, interviewerName);
 
   aiText.innerText = intro;
   setResponseStatus("Interviewer introduction");
@@ -1461,6 +1634,13 @@ async function askAIQuestion({ manualRetry = false } = {}) {
     setResponseStatus("Interviewer is preparing a question");
     setAnswerControls({ canStart: false, canStop: false, canSubmitTyped: false });
     const lastEntry = interviewLog[interviewLog.length - 1];
+    const contextPayload = {
+      interviewerName
+    };
+    if (lastEntry) {
+      contextPayload.question = lastEntry.question;
+      contextPayload.answer = lastEntry.answer;
+    }
 
     const res = await window.InterviewAI.api.fetch("/interview/question", {
       method: "POST",
@@ -1476,7 +1656,7 @@ async function askAIQuestion({ manualRetry = false } = {}) {
           interviewType: interviewConfig.interviewType || candidateProfile?.interviewType || "Technical",
           difficulty: interviewConfig.difficulty || "Easy"
         },
-        context: lastEntry ? { question: lastEntry.question, answer: lastEntry.answer } : null,
+        context: contextPayload,
         history: interviewLog.slice(-3).map((entry) => ({
           question: entry.question,
           answer: entry.answer
@@ -1517,7 +1697,7 @@ async function askAIQuestion({ manualRetry = false } = {}) {
     speak(spokenQuestion, () => {
       if (canCaptureVoice()) forceTypedFallback = false;
       isAnswerWindowOpen = true;
-      answerText.innerText = "Type your answer below or click Start Answer to respond with voice.";
+      answerText.innerText = "Type your answer below or click Answer by Voice to respond.";
       setResponseStatus("Your turn to answer");
       setAnswerControls({ canStart: canCaptureVoice(), canStop: false, canSubmitTyped: true });
       setAIState("idle");
@@ -1597,7 +1777,7 @@ async function transcribeRecordedAudio(audioBlob) {
 
 async function switchToRecorderCapture(statusMessage) {
   preferRecorderMode = true;
-  answerText.innerText = String(statusMessage || "Speech recognition unavailable. Switching to recorder mode.");
+  answerText.innerText = String(statusMessage || "Voice mode is switching. Please continue when ready.");
   setResponseStatus("Switching recorder mode");
 
   if (startRecorderCapture()) return true;
@@ -1683,7 +1863,7 @@ function initSpeechRecognition() {
     ) {
       shouldSubmitOnEnd = false;
       const switched = await switchToRecorderCapture(
-        "Speech recognition is unavailable. Switching to recorder mode..."
+        "Live speech detection is unstable. Switching to recorder mode..."
       );
       if (!switched) {
         requestMicActivation({ allowTypedFallback: true, reason: errorCode });
@@ -1694,7 +1874,7 @@ function initSpeechRecognition() {
     if (errorCode === "not-allowed" || errorCode === "service-not-allowed") {
       shouldSubmitOnEnd = false;
       const switched = await switchToRecorderCapture(
-        "Browser speech API blocked. Switching to recorder mode..."
+        "Browser voice permission is limited. Switching to recorder mode..."
       );
       if (!switched) {
         requestMicActivation({ allowTypedFallback: true, reason: errorCode });
@@ -1839,47 +2019,47 @@ function requestMicActivation({ allowTypedFallback = true, reason = "" } = {}) {
   const failureReason = normalizeMicErrorCode(reason) || latestMicErrorCode;
 
   if (!canCaptureVoice()) {
-    answerText.innerText = "Voice input is unavailable in this browser. Type your answer instead.";
+    answerText.innerText = "Voice input is not available in this browser. Please type your answer below.";
     setResponseStatus("Typed input mode");
   } else if (!isSecureMicContext()) {
     answerText.innerText =
-      "Microphone requires HTTPS or localhost. Open this app from https:// or http://localhost.";
+      "Microphone access needs HTTPS or localhost. Open the app from https:// or http://localhost.";
     setResponseStatus("Insecure context for microphone");
   } else if (failureReason === "device-busy") {
     answerText.innerText =
-      "Microphone is in use by another app or browser tab. Close other mic users, then click Start Answer.";
+      "Your microphone is in use by another app or browser tab. Close it, then click Answer by Voice.";
     setResponseStatus("Microphone busy");
   } else if (failureReason === "device-missing") {
-    answerText.innerText = "No microphone detected. Connect a mic, then click Start Answer.";
+    answerText.innerText = "No microphone detected. Connect one, then click Answer by Voice.";
     setResponseStatus("No microphone detected");
   } else if (failureReason === "constraints-failed") {
     answerText.innerText =
-      "Microphone settings failed on this device. Try another mic/browser, then click Start Answer.";
+      "Microphone setup failed on this device. Try another mic or browser, then click Answer by Voice.";
     setResponseStatus("Microphone settings error");
   } else if (failureReason === "unsupported") {
-    answerText.innerText = "This browser cannot access microphone input. Type your answer instead.";
+    answerText.innerText = "This browser can't use voice input here. Please type your answer below.";
     setResponseStatus("Typed input mode");
   } else if (failureReason === "network") {
     answerText.innerText =
-      "Speech service network error. Check your connection, then click Start Answer again.";
+      "Voice service is having a network issue. Check your connection, then click Answer by Voice again.";
     setResponseStatus("Speech service unavailable");
   } else if (failureReason === "language-not-supported") {
     answerText.innerText =
-      "Speech language is not supported in this browser. Change browser language or type your answer.";
+      "Your current speech language is unsupported in this browser. You can type your answer instead.";
     setResponseStatus("Speech language unsupported");
   } else if (failureReason === "aborted") {
     answerText.innerText =
-      "Microphone startup was interrupted. Close other apps using mic, reload the page, then click Start Answer.";
+      "Microphone startup was interrupted. Reload and try Answer by Voice again.";
     setResponseStatus("Microphone startup interrupted");
   } else if (failureReason && failureReason !== "permission-denied") {
     answerText.innerText =
-      "Microphone could not start. Close other apps/tabs using mic, reload, then click Start Answer.";
+      "Microphone could not start. Close other apps using mic, reload, then click Answer by Voice.";
     setResponseStatus("Microphone unavailable");
     if (latestMicErrorDetail) {
       console.warn("Microphone unavailable detail:", latestMicErrorDetail);
     }
   } else {
-    answerText.innerText = "Microphone permission required. Allow this site to use your mic, then click Start Answer.";
+    answerText.innerText = "Microphone permission is needed. Allow access, then click Answer by Voice.";
     setResponseStatus("Microphone permission required");
   }
 
