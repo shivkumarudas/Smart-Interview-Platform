@@ -96,9 +96,9 @@ function buildFallbackLeadIn(historyLength, contextAnswer) {
   }
 
   const variants = [
-    "Thanks, that was helpful context",
-    "Good, let's build on that",
-    "Nice, let's move to the next scenario"
+    "Thanks, that gives me a good picture",
+    "Helpful, let's dig a bit deeper",
+    "Great, let's shift to the next scenario"
   ];
 
   return variants[historyLength % variants.length];
@@ -203,9 +203,12 @@ Return ONLY valid JSON (no markdown, no extra text) with this shape:
 Rules:
 - Ask ONE clear question only in "question" (no multi-part questions).
 - "question" must be a single sentence that ends with "?".
-- Keep "question" conversational and specific to the role and skills.
+- Keep "question" conversational, spoken, and specific to the role and skills.
 - Keep "leadIn" as one short spoken transition (max 12 words, no question mark).
 - If there is previous context, briefly acknowledge the answer in "leadIn".
+- If the previous answer is shallow, ask a simpler clarifying follow-up.
+- If the previous answer is strong, increase depth or add realistic constraints.
+- Avoid repetitive openers and avoid sounding scripted.
 - Do not repeat recent questions.
 - Do not include markdown, numbering, or labels like "Question:" in output.
 `;
@@ -214,7 +217,7 @@ Rules:
     const result = await generateGeminiContent({
       parts: [{ text: prompt }],
       model: getGeminiModel(),
-      temperature: 0.6,
+      temperature: 0.72,
       timeoutMs: 15000
     });
 
